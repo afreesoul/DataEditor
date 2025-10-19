@@ -31,5 +31,16 @@ namespace GameDataEditor
         {
             LogScrollViewer.ScrollToBottom();
         }
+
+        private void EntriesListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete)
+            {
+                if (DataContext is MainViewModel viewModel && viewModel.DeleteRowCommand.CanExecute(null))
+                {
+                    viewModel.DeleteRowCommand.Execute(null);
+                }
+            }
+        }
     }
 }

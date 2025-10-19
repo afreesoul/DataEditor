@@ -3,7 +3,6 @@
     "ID": 1,
     "Name": "Slime",
     "State": "Active",
-    "CompositeDisplayName": "1 - Slime",
     "HP": 50,
     "Attack": 5,
     "Experience": 10,
@@ -19,29 +18,9 @@
     }
   },
   {
-    "ID": 2,
-    "Name": "Goblin",
-    "State": "Active",
-    "CompositeDisplayName": "2 - Goblin",
-    "HP": 100,
-    "Attack": 15,
-    "Experience": 25,
-    "BaseStats": {
-      "Strength": 10,
-      "Dexterity": 8,
-      "Intelligence": 2,
-      "ElementalResistances": {
-        "Fire": 20,
-        "Ice": 0,
-        "Lightning": 5
-      }
-    }
-  },
-  {
     "ID": 3,
     "Name": "Dragon",
     "State": "Active",
-    "CompositeDisplayName": "3 - Dragon",
     "HP": 5000,
     "Attack": 120,
     "Experience": 1000,
@@ -53,6 +32,24 @@
         "Fire": 100,
         "Ice": 75,
         "Lightning": 50
+      }
+    }
+  },
+  {
+    "ID": 4,
+    "Name": "Goblin",
+    "State": "Active",
+    "HP": 100,
+    "Attack": 15,
+    "Experience": 25,
+    "BaseStats": {
+      "Strength": 10,
+      "Dexterity": 8,
+      "Intelligence": 2,
+      "ElementalResistances": {
+        "Fire": 20,
+        "Ice": 0,
+        "Lightning": 5
       }
     }
   }
