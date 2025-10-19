@@ -1,0 +1,4 @@
+﻿ID,Name,State,Value,Description,Damage,Type
+1001,Health Potion,Active,50,Restores 50 HP.,,
+1002,Mana Potion,Active,75,Restores 100 MP.,,
+2001,Sword,Active,,,12,Melee

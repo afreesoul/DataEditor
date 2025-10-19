@@ -9,12 +9,14 @@
         Title="Game Data Editor" Height="600" Width="1000">
         <DockPanel>
             <ToolBar DockPanel.Dock="Top">
-                <Button Content="Load..." Command="{Binding LoadCommand}" Margin="2"/>
-                <Button Content="Save As..." Command="{Binding SaveCommand}" Margin="2"/>
+                <Button Content="Load" Command="{Binding LoadCommand}" Margin="2"/>
+                <Button Content="Save" Command="{Binding SaveCommand}" Margin="2"/>
                 <Button Content="Settings" Command="{Binding SettingsCommand}" Margin="2"/>
+                <Button Content="Export CSV" Command="{Binding ExportCsvCommand}" Margin="2"/>
+                <Button Content="Import CSV" Command="{Binding ImportCsvCommand}" Margin="2"/>
                 <Separator/>
-                <Button Content="Expand All" Command="{Binding ExpandAllCommand}" Margin="2"/>
-                <Button Content="Collapse All" Command="{Binding CollapseAllCommand}" Margin="2"/>
+                <Button Content="Expand" Command="{Binding ExpandAllCommand}" Margin="2"/>
+                <Button Content="Collapse" Command="{Binding CollapseAllCommand}" Margin="2"/>
             </ToolBar>
             
             <Grid>
@@ -67,7 +69,7 @@
     
                                                             <TextBlock Text="Entries" FontWeight="Bold" Margin="0,0,0,5" VerticalAlignment="Center"/>
     
-                                                            <Button Content="Add New" Command="{Binding AddNewRowCommand}" IsEnabled="{Binding IsRowSelected}" Margin="10,0,0,5"/>
+                                                            <Button Content="Add" Command="{Binding AddNewRowCommand}" IsEnabled="{Binding IsRowSelected}" Margin="10,0,0,5"/>
                                                             <Button Content="Delete" Command="{Binding DeleteRowCommand}" IsEnabled="{Binding IsRowSelected}" Margin="5,0,0,5"/>
     
                                                         </StackPanel>

@@ -24,6 +24,16 @@ namespace GameDataEditor.ViewModels
             }
         }
 
+        public string CsvFolderPath
+        {
+            get => _csvFolderPath;
+            set
+            {
+                _csvFolderPath = value;
+                OnPropertyChanged(nameof(CsvFolderPath));
+            }
+        }
+
         private bool _expandNodesByDefault;
         public bool ExpandNodesByDefault
         {
@@ -36,27 +46,43 @@ namespace GameDataEditor.ViewModels
         }
 
         public ICommand BrowseFolderCommand { get; }
+        public ICommand BrowseCsvFolderCommand { get; }
         public ICommand SaveCommand { get; }
         public ICommand CancelCommand { get; }
 
         private readonly Window _window;
+        private string _csvFolderPath;
 
         public SettingsViewModel(Window window, AppSettings settings)
         {
             _window = window;
             _dataFolderPath = settings.DataFolderPath ?? string.Empty;
+            _csvFolderPath = settings.CsvFolderPath ?? string.Empty;
             _expandNodesByDefault = settings.ExpandNodesByDefault;
 
-            BrowseFolderCommand = new RelayCommand(BrowseFolder);
+            BrowseFolderCommand = new RelayCommand(BrowseDataFolder);
+            BrowseCsvFolderCommand = new RelayCommand(BrowseCsvFolder);
             SaveCommand = new RelayCommand(Save);
             CancelCommand = new RelayCommand(Cancel);
         }
 
-        private void BrowseFolder()
+        private void BrowseDataFolder()
+        {
+            var directory = ShowFolderBrowser("Select Data Folder");
+            if (directory != null) DataFolderPath = directory;
+        }
+
+        private void BrowseCsvFolder()
+        {
+            var directory = ShowFolderBrowser("Select CSV Folder");
+            if (directory != null) CsvFolderPath = directory;
+        }
+
+        private string ShowFolderBrowser(string title)
         {
             var dialog = new OpenFileDialog
             {
-                Title = "Select Data Folder",
+                Title = title,
                 CheckFileExists = false,
                 CheckPathExists = true,
                 ValidateNames = false,
@@ -65,12 +91,9 @@ namespace GameDataEditor.ViewModels
 
             if (dialog.ShowDialog() == true)
             {
-                string? directory = Path.GetDirectoryName(dialog.FileName);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    DataFolderPath = directory;
-                }
+                return Path.GetDirectoryName(dialog.FileName);
             }
+            return null;
         }
 
         private void Save()

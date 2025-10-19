@@ -12,6 +12,7 @@ using GameDataEditor.Models.DataEntries.Complex;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -62,6 +63,8 @@ namespace GameDataEditor.ViewModels
         public ICommand ClearLogCommand { get; }
         public ICommand AddNewRowCommand { get; }
         public ICommand DeleteRowCommand { get; }
+        public ICommand ExportCsvCommand { get; }
+        public ICommand ImportCsvCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
 
@@ -141,6 +144,8 @@ namespace GameDataEditor.ViewModels
             ClearLogCommand = new RelayCommand(ClearLog);
             AddNewRowCommand = new RelayCommand(AddNewRow);
             DeleteRowCommand = new RelayCommand(DeleteRow);
+            ExportCsvCommand = new RelayCommand(ExportAllToCsv);
+            ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
             LoadSampleData();
             Log("ViewModel initialized.");
         }
@@ -154,6 +159,7 @@ namespace GameDataEditor.ViewModels
                 // Retrieve the updated settings from the dialog's ViewModel
                 var settingsVm = (SettingsViewModel)settingsWindow.DataContext;
                 _appSettings.DataFolderPath = settingsVm.DataFolderPath;
+                _appSettings.CsvFolderPath = settingsVm.CsvFolderPath;
                 _appSettings.ExpandNodesByDefault = settingsVm.ExpandNodesByDefault;
                 _settingsService.SaveSettings(_appSettings);
                 Log("Settings saved.");
@@ -253,6 +259,95 @@ namespace GameDataEditor.ViewModels
             SelectedTable.Rows.Remove(SelectedRow);
             Log($"Row {rowToDelete.ID} - {rowToDelete.Name} deleted.");
             SelectedRow = null;
+        }
+
+        private void ExportAllToCsv()
+        {
+            string? targetDirectory = _appSettings.CsvFolderPath;
+
+            if (string.IsNullOrEmpty(targetDirectory) || !Directory.Exists(targetDirectory))
+            {
+                Log("CSV folder not set or invalid. Please configure it in Settings.");
+                var saveFileDialog = new SaveFileDialog
+                {
+                    Title = "Select Folder to Export CSV Files",
+                    FileName = "_Select_a_Folder_"
+                };
+
+                if (saveFileDialog.ShowDialog() != true) return;
+                targetDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+            }
+
+            if (string.IsNullOrEmpty(targetDirectory)) return;
+
+            var csvService = new CsvService();
+
+            try
+            {
+                foreach (var table in GameTables)
+                {
+                    Log($"Exporting {table.Name} to CSV...");
+                    string csvContent = csvService.GenerateCsv(table);
+                    if (!string.IsNullOrEmpty(csvContent))
+                    {
+                        string filePath = Path.Combine(targetDirectory, $"{table.Name}.csv");
+                        File.WriteAllText(filePath, csvContent, Encoding.UTF8);
+                    }
+                }
+                Log($"All tables exported to CSV in {targetDirectory}.");
+            }
+            catch (Exception ex)
+            {
+                Log($"Error exporting to CSV: {ex.Message}");
+                MessageBox.Show($"An error occurred while exporting to CSV:\n{ex.Message}", "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ImportAllFromCsv()
+        {
+            string? sourceDirectory = _appSettings.CsvFolderPath;
+
+            if (string.IsNullOrEmpty(sourceDirectory) || !Directory.Exists(sourceDirectory))
+            {
+                Log("CSV folder not set or invalid. Please configure it in Settings.");
+                var openFileDialog = new OpenFileDialog
+                {
+                    Title = "Select Folder with CSV Files",
+                    CheckFileExists = false,
+                    CheckPathExists = true,
+                    ValidateNames = false,
+                    FileName = "_Folder_Selection_"
+                };
+
+                if (openFileDialog.ShowDialog() != true) return;
+                sourceDirectory = Path.GetDirectoryName(openFileDialog.FileName);
+            }
+
+            if (string.IsNullOrEmpty(sourceDirectory)) return;
+
+            var csvService = new CsvService();
+
+            try
+            {
+                foreach (var table in GameTables)
+                {
+                    string filePath = Path.Combine(sourceDirectory, $"{table.Name}.csv");
+                    if (File.Exists(filePath))
+                    {
+                        Log($"Importing data for {table.Name} from CSV...");
+                        string csvContent = File.ReadAllText(filePath, Encoding.UTF8);
+                        csvService.UpdateTableFromCsv(table, csvContent);
+                    }
+                }
+                Log("Finished importing from CSV.");
+                // Optionally, refresh the UI
+                UpdateFieldsDisplay();
+            }
+            catch (Exception ex)
+            {
+                Log($"Error importing from CSV: {ex.Message}");
+                MessageBox.Show($"An error occurred while importing from CSV:\n{ex.Message}", "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void LoadFromFolder()

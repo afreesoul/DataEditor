@@ -21,7 +21,7 @@
     "ID": 2001,
     "Name": "Sword",
     "State": "Active",
-    "Value": null,
+    "Value": 100,
     "Description": null,
     "Damage": 12,
     "Type": "Melee"
