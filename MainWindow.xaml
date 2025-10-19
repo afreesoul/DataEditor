@@ -1,0 +1,194 @@
+<Window x:Class="GameDataEditor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GameDataEditor"
+        xmlns:scm="clr-namespace:System.ComponentModel;assembly=WindowsBase"
+        mc:Ignorable="d"
+        Title="Game Data Editor" Height="600" Width="1000">
+        <DockPanel>
+            <ToolBar DockPanel.Dock="Top">
+                <Button Content="Load..." Command="{Binding LoadCommand}" Margin="2"/>
+                <Button Content="Save As..." Command="{Binding SaveCommand}" Margin="2"/>
+                <Separator/>
+                <Button Content="Expand All" Command="{Binding ExpandAllCommand}" Margin="2"/>
+                <Button Content="Collapse All" Command="{Binding CollapseAllCommand}" Margin="2"/>
+            </ToolBar>
+            
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="5"/>
+                    <RowDefinition Height="150" MinHeight="50"/>
+                </Grid.RowDefinitions>
+    
+                <!-- Main Content Area -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" MinWidth="150"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="250" MinWidth="150"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="*" MinWidth="200"/>
+                    </Grid.ColumnDefinitions>
+    
+                    <!-- Column 1: Data Tables -->
+                    <DockPanel Grid.Column="0" Margin="5">
+                        <TextBlock DockPanel.Dock="Top" Text="Data Tables" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <ListBox Name="TablesListBox" 
+                                 ItemsSource="{Binding GameTables}" 
+                                 DisplayMemberPath="Name"
+                                 SelectedItem="{Binding SelectedTable, Mode=TwoWay}"/>
+                    </DockPanel>
+    
+                    <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+    
+                                                    <!-- Column 2: Entries -->
+    
+                                                    <DockPanel Grid.Column="2" Margin="5">
+    
+                                                        <DockPanel.Resources>
+    
+                                                            <CollectionViewSource x:Key="SortedEntriesView" Source="{Binding SelectedTable.Rows}">
+    
+                                                                <CollectionViewSource.SortDescriptions>
+    
+                                                                    <scm:SortDescription PropertyName="ID" Direction="Ascending"/>
+    
+                                                                </CollectionViewSource.SortDescriptions>
+    
+                                                            </CollectionViewSource>
+    
+                                                        </DockPanel.Resources>
+    
+                                                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+    
+                                                            <TextBlock Text="Entries" FontWeight="Bold" Margin="0,0,0,5" VerticalAlignment="Center"/>
+    
+                                                            <Button Content="Add New" Command="{Binding AddNewRowCommand}" IsEnabled="{Binding IsRowSelected}" Margin="10,0,0,5"/>
+    
+                                                        </StackPanel>
+    
+                                                        <ListBox Name="EntriesListBox" 
+    
+                                                                 ItemsSource="{Binding Source={StaticResource SortedEntriesView}}"
+                                 SelectedItem="{Binding SelectedRow, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}{0} - {1}">
+                                                <Binding Path="ID"/>
+                                                <Binding Path="Name"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </DockPanel>
+    
+                    <GridSplitter Grid.Column="3" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+    
+                    <!-- Column 3: Details -->
+                    <DockPanel Grid.Column="4" Margin="5">
+                        <TextBlock DockPanel.Dock="Top" Text="Details" FontWeight="Bold" Margin="0,0,0,5"/>
+                        <TreeView ItemsSource="{Binding SelectedRowFields}">
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="{x:Type TreeViewItem}">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding SubFields}">
+                                    <Grid Margin="0,2" MinWidth="300">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding Key}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        
+                                        <!-- TextBox for non-enum, non-complex fields -->
+                                        <TextBox Grid.Column="1" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" VerticalAlignment="Center">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasSubFields}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsEnum}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsForeignKey}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+    
+                                        <!-- ComboBox for enum fields -->
+                                        <ComboBox Grid.Column="1" 
+                                                  ItemsSource="{Binding EnumValues}" 
+                                                  SelectedItem="{Binding Value, Mode=TwoWay}" 
+                                                  VerticalAlignment="Center">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsEnum}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+    
+                                        <!-- ComboBox for foreign key fields -->
+                                        <ComboBox Grid.Column="1" 
+                                                  ItemsSource="{Binding ForeignKeyOptions}"
+                                                  DisplayMemberPath="CompositeDisplayName"
+                                                  SelectedItem="{Binding SelectedForeignKey, Mode=TwoWay}" 
+                                                  VerticalAlignment="Center">
+                                            <ComboBox.Style>
+                                                <Style TargetType="ComboBox">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsForeignKey}" Value="True">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ComboBox.Style>
+                                        </ComboBox>
+                                    </Grid>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </DockPanel>
+                </Grid>
+    
+                <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+    
+                <!-- Log Area -->
+                <DockPanel Grid.Row="2" Margin="5">
+                    <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="Bold" Margin="0,0,0,5"/>
+                    <ScrollViewer x:Name="LogScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <TextBox Text="{Binding LogOutput}" 
+                                 IsReadOnly="True" 
+                                 TextWrapping="Wrap" 
+                                 AcceptsReturn="True"
+                                 TextChanged="LogTextBox_TextChanged">
+                            <TextBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Clear" Command="{Binding ClearLogCommand}"/>
+                                </ContextMenu>
+                            </TextBox.ContextMenu>
+                        </TextBox>
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
+        </DockPanel>
+</Window>

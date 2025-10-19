@@ -1,0 +1,1 @@
+// This file is no longer used after refactoring to a strong-typed model.

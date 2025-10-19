@@ -1,0 +1,20 @@
+[
+  {
+    "ID": 1,
+    "Name": "Main Quest 1",
+    "State": "Active",
+    "CompositeDisplayName": "1 - Main Quest 1",
+    "Title": "A New Beginning",
+    "RequiredLevel": 1,
+    "GiverNPC": 0
+  },
+  {
+    "ID": 2,
+    "Name": "Side Quest A",
+    "State": "Active",
+    "CompositeDisplayName": "2 - Side Quest A",
+    "Title": "Lost and Found",
+    "RequiredLevel": null,
+    "GiverNPC": 2
+  }
+]

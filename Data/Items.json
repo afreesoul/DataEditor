@@ -1,0 +1,42 @@
+[
+  {
+    "ID": 1001,
+    "Name": "Health Potion",
+    "State": "Active",
+    "CompositeDisplayName": "1001 - Health Potion",
+    "Value": 50,
+    "Description": "Restores 50 HP.",
+    "Damage": null,
+    "Type": null
+  },
+  {
+    "ID": 1002,
+    "Name": "Mana Potion",
+    "State": "Active",
+    "CompositeDisplayName": "1002 - Mana Potion",
+    "Value": 75,
+    "Description": "Restores 100 MP.",
+    "Damage": null,
+    "Type": null
+  },
+  {
+    "ID": 2001,
+    "Name": "Sword",
+    "State": "Active",
+    "CompositeDisplayName": "2001 - Sword",
+    "Value": null,
+    "Description": null,
+    "Damage": 12,
+    "Type": "Melee"
+  },
+  {
+    "ID": 1003,
+    "Name": "Mana Potion (Copy)",
+    "State": "Active",
+    "CompositeDisplayName": "1003 - Mana Potion (Copy)",
+    "Value": 75,
+    "Description": "Restores 100 MP.",
+    "Damage": null,
+    "Type": null
+  }
+]
