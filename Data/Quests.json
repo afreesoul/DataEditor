@@ -5,7 +5,7 @@
     "State": "Active",
     "Title": "A New Beginning",
     "RequiredLevel": 1,
-    "GiverNPC": 3
+    "GiverNPC": 0
   },
   {
     "ID": 2,
@@ -13,6 +13,6 @@
     "State": "Active",
     "Title": "Lost and Found",
     "RequiredLevel": null,
-    "GiverNPC": 4
+    "GiverNPC": 2
   }
 ]

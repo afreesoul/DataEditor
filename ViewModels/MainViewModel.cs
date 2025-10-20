@@ -232,7 +232,13 @@ namespace GameDataEditor.ViewModels
                 Converters = { new JsonStringEnumConverter(), new ForeignKeyConverterFactory() }
             };
             string json = JsonSerializer.Serialize(SelectedRow, SelectedRow.GetType(), options);
-            var newRow = (BaseDataRow)JsonSerializer.Deserialize(json, SelectedRow.GetType(), options)!;
+            var newRow = (BaseDataRow?)JsonSerializer.Deserialize(json, SelectedRow.GetType(), options);
+
+            if (newRow == null)
+            {
+                Log("Error: Failed to create a copy of the selected row.");
+                return;
+            }
 
             // 3. Update the ID and Name
             newRow.ID = newId;

@@ -1,6 +1,7 @@
 using GameDataEditor.Models;
 using GameDataEditor.Models.DataEntries;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -20,11 +21,17 @@ namespace GameDataEditor.ViewModels
         private readonly string _tableName;
         private readonly Action<string, object, int, int> _onIdChanged;
 
-        public string Key => _propertyInfo.Name;
+        // For collection items
+        private readonly bool _isCollectionItem;
+        private readonly int _collectionIndex = -1;
+
+        public string Key { get; private set; }
         public bool HasSubFields => SubFields.Count > 0;
         public bool IsEnum { get; private set; }
         public bool IsForeignKey { get; private set; }
         public bool IsIdField { get; }
+        public bool IsCollection { get; private set; }
+        public bool IsCollectionItem => _isCollectionItem;
 
         public IEnumerable<string> EnumValues { get; private set; } = Enumerable.Empty<string>();
         
@@ -77,34 +84,66 @@ namespace GameDataEditor.ViewModels
                 _propertyInfo.SetValue(_instance, newFkInstance);
                 OnPropertyChanged(nameof(SelectedForeignKey));
             }
-        }
+            }
 
         public object? Value
         {
             get
             {
-                object? val = _propertyInfo.GetValue(_instance);
+                if (IsCollection) return "(Collection)";
+
+                object? val;
+                if (_isCollectionItem)
+                {
+                    val = ((IList)_instance)[_collectionIndex];
+                }
+                else
+                {
+                    val = _propertyInfo.GetValue(_instance);
+                }
+                
                 return IsEnum ? val?.ToString() : val;
             }
             set
             {
                 try
                 {
+                    Type propertyType;
+                    if (_isCollectionItem)
+                    {
+                        propertyType = _propertyInfo.PropertyType.GetGenericArguments()[0];
+                    }
+                    else
+                    {
+                        propertyType = _propertyInfo.PropertyType;
+                    }
+
                     object? convertedValue;
                     if (IsEnum)
                     {
                         if (value == null) return;
-                        convertedValue = Enum.Parse(_propertyInfo.PropertyType, value.ToString()!);
+                        convertedValue = Enum.Parse(propertyType, value.ToString()!);
                     }
                     else
                     {
-                        var propertyType = Nullable.GetUnderlyingType(_propertyInfo.PropertyType) ?? _propertyInfo.PropertyType;
+                        var targetType = Nullable.GetUnderlyingType(propertyType) ?? propertyType;
                         convertedValue = (value == null || value.ToString() == string.Empty)
                             ? null
-                            : Convert.ChangeType(value, propertyType, CultureInfo.InvariantCulture);
+                            : Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
                     }
 
-                    if (convertedValue == null && _propertyInfo.PropertyType.IsValueType && Nullable.GetUnderlyingType(_propertyInfo.PropertyType) == null) return;
+                    if (convertedValue == null && propertyType.IsValueType && Nullable.GetUnderlyingType(propertyType) == null) return;
+
+                    if (_isCollectionItem)
+                    {
+                        var list = (IList)_instance;
+                        if (!object.Equals(list[_collectionIndex], convertedValue))
+                        {
+                            list[_collectionIndex] = convertedValue;
+                            OnPropertyChanged(nameof(Value));
+                        }
+                        return;
+                    }
 
                     if (!object.Equals(_propertyInfo.GetValue(_instance), convertedValue))
                     {
@@ -112,15 +151,13 @@ namespace GameDataEditor.ViewModels
                         {
                             var newId = (int)convertedValue!;
 
-                            // --- ID Uniqueness Validation ---
                             var table = _allTables.FirstOrDefault(t => t.Name == _tableName);
                             if (table != null && table.Rows.Any(r => r.ID == newId && r != _instance))
                             {
                                 MessageBox.Show($"ID {newId} already exists in table '{_tableName}'. Please choose a unique ID.", "Duplicate ID", MessageBoxButton.OK, MessageBoxImage.Error);
-                                OnPropertyChanged(nameof(Value)); // Revert UI
+                                OnPropertyChanged(nameof(Value));
                                 return;
                             }
-                            // --- End Validation ---
 
                             var oldId = (int)_propertyInfo.GetValue(_instance)!;
                             _log($"ID field for table '{_tableName}' changed. Old: {oldId}, New: {newId}. Invoking callback.");
@@ -138,6 +175,7 @@ namespace GameDataEditor.ViewModels
             }
         }
 
+        // Main constructor
         public FieldViewModel(object instance, PropertyInfo propertyInfo, ObservableCollection<GameDataTable> allTables, Action<string> log, string tableName, Action<string, object, int, int> onIdChanged)
         {
             _instance = instance;
@@ -147,50 +185,103 @@ namespace GameDataEditor.ViewModels
             _tableName = tableName;
             _onIdChanged = onIdChanged;
 
+            Key = _propertyInfo.Name;
             IsIdField = (Key == "ID");
+
             CheckFieldType();
+            PopulateSubFields();
+        }
+
+        // Constructor for collection items
+        private FieldViewModel(object collectionInstance, PropertyInfo collectionPropInfo, int index, Action<string> log)
+        {
+            _instance = collectionInstance;
+            _propertyInfo = collectionPropInfo; // This is the PropertyInfo of the collection itself
+            _collectionIndex = index;
+            _isCollectionItem = true;
+            _log = log;
+
+            Key = $"[{index}]";
+            
+            // Defaults for non-applicable fields
+            _allTables = new ObservableCollection<GameDataTable>();
+            _tableName = string.Empty;
+            _onIdChanged = (a,b,c,d) => {};
+            IsIdField = false;
+
+            CheckFieldType(); // Check if the item itself is an enum, etc.
             PopulateSubFields();
         }
 
         private void CheckFieldType()
         {
-            Type propType = _propertyInfo.PropertyType;
+            Type propType;
+            if (_isCollectionItem)
+            {
+                // For collection items, the "property type" is the generic argument of the list
+                propType = _propertyInfo.PropertyType.GetGenericArguments()[0];
+            }
+            else
+            {
+                propType = _propertyInfo.PropertyType;
+            }
+
             IsEnum = propType.IsEnum;
             if (IsEnum) EnumValues = Enum.GetNames(propType);
 
             IsForeignKey = propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(ForeignKey<>);
-            _log($"  Field '{Key}': IsForeignKey = {IsForeignKey}");
             if (IsForeignKey)
             {
                 Type referencedType = propType.GetGenericArguments()[0];
-                _log($"  Field '{Key}': Referenced data type is '{referencedType.Name}'");
-
                 var targetTable = _allTables.FirstOrDefault(t => t.DataType == referencedType);
                 if (targetTable != null)
                 {
-                    _log($"  Field '{Key}': Found target table '{targetTable.Name}' with {targetTable.Rows.Count} rows.");
                     ForeignKeyOptions = targetTable.Rows;
                 }
-                else
-                {
-                    _log($"  Field '{Key}': FAILED to find target table for type '{referencedType.Name}'.");
-                }
+            }
+
+            // This check is only for top-level properties, not items within collections.
+            if (!_isCollectionItem)
+            {
+                IsCollection = typeof(IList).IsAssignableFrom(propType) && propType != typeof(string);
             }
         }
 
         private void PopulateSubFields()
         {
             SubFields.Clear();
-            object? currentValue = _propertyInfo.GetValue(_instance);
+            object? currentValue;
+
+            if (_isCollectionItem)
+            {
+                currentValue = ((IList)_instance)[_collectionIndex];
+            }
+            else
+            {
+                currentValue = _propertyInfo.GetValue(_instance);
+            }
+
             if (currentValue == null) return;
 
-            Type valueType = currentValue.GetType();
-            if (valueType.IsClass && valueType != typeof(string) && !IsForeignKey)
+            if (IsCollection)
             {
-                var subProperties = valueType.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => p.MetadataToken);
-                foreach (var subProp in subProperties)
+                var list = (IList)currentValue;
+                for (int i = 0; i < list.Count; i++)
                 {
-                    SubFields.Add(new FieldViewModel(currentValue, subProp, _allTables, _log, _tableName, _onIdChanged));
+                    SubFields.Add(new FieldViewModel(list, _propertyInfo, i, _log));
+                }
+            }
+            else
+            {
+                Type valueType = currentValue.GetType();
+                if (valueType.IsClass && valueType != typeof(string) && !IsForeignKey)
+                {
+                    var subProperties = valueType.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => p.MetadataToken);
+                    foreach (var subProp in subProperties)
+                    {
+                        // Pass the parent's _onIdChanged delegate down to children
+                        SubFields.Add(new FieldViewModel(currentValue, subProp, _allTables, _log, _tableName, _onIdChanged));
+                    }
                 }
             }
         }

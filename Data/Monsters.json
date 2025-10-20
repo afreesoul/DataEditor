@@ -15,7 +15,57 @@
         "Ice": -5,
         "Lightning": 0
       }
-    }
+    },
+    "Tags": [
+      "Beast",
+      "Slime"
+    ],
+    "Auras": [
+      {
+        "Name": "test",
+        "Damage": 5645,
+        "Duration": 10
+      },
+      {
+        "Name": "Ice",
+        "Damage": 2,
+        "Duration": 15
+      }
+    ]
+  },
+  {
+    "ID": 2,
+    "Name": "Goblin",
+    "State": "Active",
+    "HP": 100,
+    "Attack": 15,
+    "Experience": 25,
+    "BaseStats": {
+      "Strength": 10,
+      "Dexterity": 8,
+      "Intelligence": 2,
+      "ElementalResistances": {
+        "Fire": 20,
+        "Ice": 0,
+        "Lightning": 5
+      }
+    },
+    "Tags": [
+      "Beast",
+      "Slime"
+    ],
+    "Auras": [
+      {
+        "Name": "Fire",
+        "Damage": 5,
+        "Duration": 10
+      },
+      {
+        "Name": "Ice",
+        "Damage": 2,
+        "Duration": 15
+      }
+    ]
   },
   {
     "ID": 3,
@@ -33,24 +83,22 @@
         "Ice": 75,
         "Lightning": 50
       }
-    }
-  },
-  {
-    "ID": 4,
-    "Name": "Goblin",
-    "State": "Active",
-    "HP": 100,
-    "Attack": 15,
-    "Experience": 25,
-    "BaseStats": {
-      "Strength": 10,
-      "Dexterity": 8,
-      "Intelligence": 2,
-      "ElementalResistances": {
-        "Fire": 20,
-        "Ice": 0,
-        "Lightning": 5
+    },
+    "Tags": [
+      "Beast",
+      "Slime"
+    ],
+    "Auras": [
+      {
+        "Name": "Fire",
+        "Damage": 5,
+        "Duration": 10
+      },
+      {
+        "Name": "Ice",
+        "Damage": 2,
+        "Duration": 15
       }
-    }
+    ]
   }
 ]

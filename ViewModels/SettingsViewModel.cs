@@ -1,13 +1,7 @@
 
 using GameDataEditor.Commands;
-using GameDataEditor.Models.Settings;
-using Microsoft.Win32;
-using System;
 using System.ComponentModel;
-using System.IO;
-using System.Text.Json;
-using System.Windows;
-using System.Windows.Input;
+using System.Windows.Forms;
 
 namespace GameDataEditor.ViewModels
 {
@@ -19,18 +13,25 @@ namespace GameDataEditor.ViewModels
             get => _dataFolderPath;
             set
             {
-                _dataFolderPath = value;
-                OnPropertyChanged(nameof(DataFolderPath));
+                if (_dataFolderPath != value)
+                {
+                    _dataFolderPath = value;
+                    OnPropertyChanged(nameof(DataFolderPath));
+                }
             }
         }
 
+        private string _csvFolderPath;
         public string CsvFolderPath
         {
             get => _csvFolderPath;
             set
             {
-                _csvFolderPath = value;
-                OnPropertyChanged(nameof(CsvFolderPath));
+                if (_csvFolderPath != value)
+                {
+                    _csvFolderPath = value;
+                    OnPropertyChanged(nameof(CsvFolderPath));
+                }
             }
         }
 
@@ -40,72 +41,43 @@ namespace GameDataEditor.ViewModels
             get => _expandNodesByDefault;
             set
             {
-                _expandNodesByDefault = value;
-                OnPropertyChanged(nameof(ExpandNodesByDefault));
+                if (_expandNodesByDefault != value)
+                {
+                    _expandNodesByDefault = value;
+                    OnPropertyChanged(nameof(ExpandNodesByDefault));
+                }
             }
         }
 
-        public ICommand BrowseFolderCommand { get; }
-        public ICommand BrowseCsvFolderCommand { get; }
-        public ICommand SaveCommand { get; }
-        public ICommand CancelCommand { get; }
+        public RelayCommand SelectDataFolderCommand { get; }
+        public RelayCommand SelectCsvFolderCommand { get; }
 
-        private readonly Window _window;
-        private string _csvFolderPath;
-
-        public SettingsViewModel(Window window, AppSettings settings)
+        public SettingsViewModel(string dataPath, string csvPath, bool expandNodes)
         {
-            _window = window;
-            _dataFolderPath = settings.DataFolderPath ?? string.Empty;
-            _csvFolderPath = settings.CsvFolderPath ?? string.Empty;
-            _expandNodesByDefault = settings.ExpandNodesByDefault;
+            _dataFolderPath = dataPath;
+            _csvFolderPath = csvPath;
+            _expandNodesByDefault = expandNodes;
 
-            BrowseFolderCommand = new RelayCommand(BrowseDataFolder);
-            BrowseCsvFolderCommand = new RelayCommand(BrowseCsvFolder);
-            SaveCommand = new RelayCommand(Save);
-            CancelCommand = new RelayCommand(Cancel);
+            SelectDataFolderCommand = new RelayCommand(SelectDataFolder);
+            SelectCsvFolderCommand = new RelayCommand(SelectCsvFolder);
         }
 
-        private void BrowseDataFolder()
+        private void SelectDataFolder()
         {
-            var directory = ShowFolderBrowser("Select Data Folder");
-            if (directory != null) DataFolderPath = directory;
-        }
-
-        private void BrowseCsvFolder()
-        {
-            var directory = ShowFolderBrowser("Select CSV Folder");
-            if (directory != null) CsvFolderPath = directory;
-        }
-
-        private string ShowFolderBrowser(string title)
-        {
-            var dialog = new OpenFileDialog
+            var dialog = new FolderBrowserDialog();
+            if (dialog.ShowDialog() == DialogResult.OK)
             {
-                Title = title,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                ValidateNames = false,
-                FileName = "_Folder_Selection_"
-            };
-
-            if (dialog.ShowDialog() == true)
-            {
-                return Path.GetDirectoryName(dialog.FileName);
+                DataFolderPath = dialog.SelectedPath ?? string.Empty;
             }
-            return null;
         }
 
-        private void Save()
+        private void SelectCsvFolder()
         {
-            _window.DialogResult = true;
-            _window.Close();
-        }
-
-        private void Cancel()
-        {
-            _window.DialogResult = false;
-            _window.Close();
+            var dialog = new FolderBrowserDialog();
+            if (dialog.ShowDialog() == DialogResult.OK)
+            {
+                CsvFolderPath = dialog.SelectedPath ?? string.Empty;
+            }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

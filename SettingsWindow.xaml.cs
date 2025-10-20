@@ -7,10 +7,23 @@ namespace GameDataEditor
 {
     public partial class SettingsWindow : Window
     {
-        public SettingsWindow(AppSettings settings)
+        private readonly AppSettings _appSettings;
+
+        public SettingsWindow(AppSettings appSettings)
         {
             InitializeComponent();
-            DataContext = new SettingsViewModel(this, settings);
+            _appSettings = appSettings;
+            DataContext = new SettingsViewModel(_appSettings.DataFolderPath, _appSettings.CsvFolderPath, _appSettings.ExpandNodesByDefault);
+        }
+
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = true;
+        }
+
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            DialogResult = false;
         }
     }
 }

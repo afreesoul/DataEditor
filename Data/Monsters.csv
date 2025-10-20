@@ -1,4 +1,4 @@
-﻿ID,Name,State,HP,Attack,Experience,BaseStats.Strength,BaseStats.Dexterity,BaseStats.Intelligence,BaseStats.ElementalResistances.Fire,BaseStats.ElementalResistances.Ice,BaseStats.ElementalResistances.Lightning
-1,Slime,Active,50,5,10,5,5,1,10,-5,0
-2,Goblin,Active,100,15,25,10,8,2,20,0,5
-3,Dragon,Active,5000,120,1000,100,60,80,100,75,50
+﻿ID,Name,State,HP,Attack,Experience,BaseStats.Strength,BaseStats.Dexterity,BaseStats.Intelligence,BaseStats.ElementalResistances.Fire,BaseStats.ElementalResistances.Ice,BaseStats.ElementalResistances.Lightning,Tags.0,Tags.1,Auras.0.Name,Auras.0.Damage,Auras.0.Duration,Auras.1.Name,Auras.1.Damage,Auras.1.Duration
+1,Slime,Active,50,5,10,5,5,1,10,-5,0,Beast,Slime,test,5645,10,Ice,2,15
+2,Goblin,Active,100,15,25,10,8,2,20,0,5,Beast,Slime,Fire,5,10,Ice,2,15
+3,Dragon,Active,5000,120,1000,100,60,80,100,75,50,Beast,Slime,Fire,5,10,Ice,2,15
