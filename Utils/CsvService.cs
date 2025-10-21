@@ -13,11 +13,11 @@ namespace GameDataEditor.Utils
 {
     public class CsvService
     {
-        private readonly Dictionary<Type, List<PropertyInfo>> _propertyOrderCache = new Dictionary<Type, List<PropertyInfo>>();
+        private readonly Dictionary<Type, List<PropertyInfo>> _propertyOrderCache = new Dictionary<Type, List<PropertyInfo>> ();
 
         private List<PropertyInfo> GetOrderedProperties(Type type)
         {
-            if (_propertyOrderCache.TryGetValue(type, out var cachedProps)) return cachedProps;
+            if (_propertyOrderCache.TryGetValue(type, out var cachedProps)) return cachedProps!;
 
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.Name != "CompositeDisplayName")
@@ -61,7 +61,7 @@ namespace GameDataEditor.Utils
             return sb.ToString();
         }
 
-        private void FlattenObject(object obj, Dictionary<string, object> dict, string prefix)
+        private void FlattenObject(object? obj, Dictionary<string, object> dict, string prefix)
         {
             if (obj == null) return;
 
@@ -70,7 +70,7 @@ namespace GameDataEditor.Utils
             foreach (var prop in properties)
             {
                 string key = string.IsNullOrEmpty(prefix) ? prop.Name : $"{prefix}.{prop.Name}";
-                object value = prop.GetValue(obj);
+                object? value = prop.GetValue(obj);
 
                 if (value == null) continue;
 
@@ -121,14 +121,15 @@ namespace GameDataEditor.Utils
 
             foreach (var record in records)
             {
-                if (!record.TryGetValue("ID", out string idString) || !int.TryParse(idString, out int id))
+                string? idString = null;
+                if (!record.TryGetValue("ID", out idString) || !int.TryParse(idString, out int id))
                 {
                     continue;
                 }
 
-                if (tableRowsById.TryGetValue(id, out BaseDataRow rowToUpdate))
+                if (tableRowsById.TryGetValue(id, out BaseDataRow? rowToUpdate))
                 {
-                    UnflattenObject(rowToUpdate, record);
+                    if (rowToUpdate != null) UnflattenObject(rowToUpdate, record);
                 }
             }
         }
@@ -149,7 +150,7 @@ namespace GameDataEditor.Utils
 
                 if (propType.GetInterface(nameof(IList)) != null && propType != typeof(string))
                 {
-                    var list = (IList)propInfo.GetValue(targetObj);
+                    var list = (IList?)propInfo.GetValue(targetObj);
                     if (list == null) continue;
                     list.Clear();
 
@@ -172,8 +173,11 @@ namespace GameDataEditor.Utils
                         else
                         {
                             var newItem = Activator.CreateInstance(itemType);
-                            UnflattenObject(newItem, itemRecord);
-                            list.Add(newItem);
+                            if (newItem != null) 
+                            {
+                                UnflattenObject(newItem, itemRecord);
+                                list.Add(newItem);
+                            }
                         }
                     }
                 }

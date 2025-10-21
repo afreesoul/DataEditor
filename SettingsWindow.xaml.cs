@@ -13,7 +13,7 @@ namespace GameDataEditor
         {
             InitializeComponent();
             _appSettings = appSettings;
-            DataContext = new SettingsViewModel(_appSettings.DataFolderPath, _appSettings.CsvFolderPath, _appSettings.ExpandNodesByDefault);
+            DataContext = new SettingsViewModel(_appSettings.DataFolderPath ?? string.Empty, _appSettings.CsvFolderPath ?? string.Empty, _appSettings.ExpandNodesByDefault);
         }
 
         private void OkButton_Click(object sender, RoutedEventArgs e)

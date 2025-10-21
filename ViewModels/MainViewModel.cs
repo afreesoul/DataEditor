@@ -491,16 +491,16 @@ namespace GameDataEditor.ViewModels
                                 var fkValue = prop.GetValue(row);
                                 if (fkValue == null) continue;
 
-                                var idProp = fkValue.GetType().GetProperty("ID");
+                                PropertyInfo? idProp = fkValue.GetType().GetProperty("ID");
                                 if (idProp == null) continue;
 
-                                var currentId = (int)idProp.GetValue(fkValue);
+                                int currentId = Convert.ToInt32(idProp.GetValue(fkValue));
 
                                 if (currentId == oldId)
                                 {
                                     Log($"Found match in table '{table.Name}', row '{row.ID} - {row.Name}', property '{prop.Name}'. Updating value to {newId}.");
                                     var newFkInstance = Activator.CreateInstance(prop.PropertyType);
-                                    prop.PropertyType.GetProperty("ID").SetValue(newFkInstance, newId);
+                                    prop.PropertyType.GetProperty("ID")?.SetValue(newFkInstance, newId);
                                     prop.SetValue(row, newFkInstance);
                                 }
                             }
@@ -559,10 +559,6 @@ namespace GameDataEditor.ViewModels
                         // Reselect the row to ensure the UI is consistent
                         Log("Reselecting row.");
                         SelectedRow = dataRow;
-                    }
-                    else
-                    {
-                        Log("OnIdChanged: Failed to find table or item.");
                     }
                 }));
             }

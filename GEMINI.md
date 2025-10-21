@@ -1,0 +1,2 @@
+## Gemini Added Memories
+- The user's project is a C# WPF application named GameDataEditor. It uses the MVVM pattern. The UI has three vertical columns: 1) A list of data tables (GameDataTable), 2) A list of rows (GameDataRow) for the selected table, and 3) A key-value display of the fields for the selected row. The main logic is in MainViewModel.cs, which handles loading/saving collections of GameDataTable objects from/to folders containing multiple JSON files.
