@@ -71,6 +71,7 @@
     
                                                             <Button Content="Add" Command="{Binding AddNewRowCommand}" IsEnabled="{Binding IsTableSelected}" Margin="10,0,0,5"/>
                                                             <Button Content="Delete" Command="{Binding DeleteRowCommand}" IsEnabled="{Binding IsRowSelected}" Margin="5,0,0,5"/>
+                                                            <Button Content="Fix" Command="{Binding FixFieldsCommand}" IsEnabled="{Binding IsTableSelected}" Margin="5,0,0,5"/>
     
                                                         </StackPanel>
     

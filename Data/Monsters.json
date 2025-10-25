@@ -17,8 +17,7 @@
       }
     },
     "Tags": [
-      "Beast",
-      "Slime"
+      "Beast"
     ],
     "Auras": [
       {
@@ -30,6 +29,36 @@
         "Name": "Ice",
         "Damage": 2,
         "Duration": 15
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
       }
     ]
   },
@@ -51,8 +80,7 @@
       }
     },
     "Tags": [
-      "Beast",
-      "Slime"
+      "Beast"
     ],
     "Auras": [
       {
@@ -64,6 +92,36 @@
         "Name": "Ice",
         "Damage": 2,
         "Duration": 15
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
       }
     ]
   },
@@ -85,8 +143,7 @@
       }
     },
     "Tags": [
-      "Beast",
-      "Slime"
+      "Beast"
     ],
     "Auras": [
       {
@@ -98,6 +155,36 @@
         "Name": "Ice",
         "Damage": 2,
         "Duration": 15
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
+      },
+      {
+        "Name": "",
+        "Damage": 0,
+        "Duration": 0
       }
     ]
   }

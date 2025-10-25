@@ -93,6 +93,7 @@ namespace GameDataEditor.ViewModels
         public ICommand DeleteRowCommand { get; }
         public ICommand ExportCsvCommand { get; }
         public ICommand ImportCsvCommand { get; }
+        public ICommand FixFieldsCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
         public bool IsTableSelected => SelectedTable != null;
@@ -176,7 +177,8 @@ namespace GameDataEditor.ViewModels
             DeleteRowCommand = new RelayCommand(DeleteRow);
             ExportCsvCommand = new RelayCommand(ExportAllToCsv);
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
-            //LoadSampleData();
+            FixFieldsCommand = new RelayCommand(FixFields);
+
             LoadFromFolder();
             Log("ViewModel initialized.");
         }
@@ -739,41 +741,151 @@ namespace GameDataEditor.ViewModels
             }
         }
 
-        private void LoadSampleData()
+        private void FixFields()
         {
-            GameTables.Clear();
-
-            // Items Table
-            var itemsTable = new GameDataTable("Items", typeof(Item));
-            var items = new List<Item>
+            if (GameTables == null || GameTables.Count == 0)
             {
-                new Item { ID = 1001, Name = "Health Potion", State = DataState.Active, Value = 50, Description = "Restores 50 HP." },
-                new Item { ID = 1002, Name = "Mana Potion", State = DataState.Active, Value = 75, Description = "Restores 100 MP." },
-                new Item { ID = 2001, Name = "Sword", State = DataState.Active, Damage = 12, Type = "Melee" }
-            };
-            foreach(var item in items.OrderBy(i => i.ID)) itemsTable.Rows.Add(item);
-            GameTables.Add(itemsTable);
+                Log("No tables available to fix fields.");
+                return;
+            }
 
-            // Monsters Table
-            var monstersTable = new GameDataTable("Monsters", typeof(Monster));
-            var monsters = new List<Monster>
-            {
-                new Monster { ID = 1, Name = "Slime", State = DataState.Active, HP = 50, Attack = 5, Experience = 10, BaseStats = new Stats { Strength = 5, Dexterity = 5, Intelligence = 1, ElementalResistances = new Resistances { Fire = 10, Ice = -5, Lightning = 0 } } },
-                new Monster { ID = 2, Name = "Goblin", State = DataState.Active, HP = 100, Attack = 15, Experience = 25, BaseStats = new Stats { Strength = 10, Dexterity = 8, Intelligence = 2, ElementalResistances = new Resistances { Fire = 20, Ice = 0, Lightning = 5 } } },
-                new Monster { ID = 3, Name = "Dragon", State = DataState.Active, HP = 5000, Attack = 120, Experience = 1000, BaseStats = new Stats { Strength = 100, Dexterity = 60, Intelligence = 80, ElementalResistances = new Resistances { Fire = 100, Ice = 75, Lightning = 50 } } }
-            };
-            foreach(var monster in monsters.OrderBy(m => m.ID)) monstersTable.Rows.Add(monster);
-            GameTables.Add(monstersTable);
+            Log("Starting field correction for all tables...");
+            
+            int totalTablesFixed = 0;
+            int totalRowsFixed = 0;
+            int totalFieldsFixed = 0;
+            int totalArraysFixed = 0;
 
-            // Quests Table
-            var questsTable = new GameDataTable("Quests", typeof(Quest));
-            var quests = new List<Quest>
+            try
             {
-                new Quest { ID = 1, Name = "Main Quest 1", State = DataState.Active, Title = "A New Beginning", RequiredLevel = 1 },
-                new Quest { ID = 2, Name = "Side Quest A", State = DataState.Active, Title = "Lost and Found", GiverNPC = 2 } // Goblin's ID is 2
-            };
-            foreach(var quest in quests.OrderBy(q => q.ID)) questsTable.Rows.Add(quest);
-            GameTables.Add(questsTable);
+                foreach (var table in GameTables)
+                {
+                    if (table.Rows.Count == 0)
+                    {
+                        Log($"Skipping empty table: {table.Name}");
+                        continue;
+                    }
+
+                    Log($"Fixing fields for table: {table.Name}");
+                    int tableRowsFixed = 0;
+                    int tableFieldsFixed = 0;
+                    int tableArraysFixed = 0;
+
+                    // Get the data type for this table
+                    var rowType = table.DataType;
+                    
+                    // Create a default instance to compare against
+                    var defaultInstance = Activator.CreateInstance(rowType) as BaseDataRow;
+                    if (defaultInstance == null)
+                    {
+                        Log($"Error: Failed to create default instance for {rowType.Name}");
+                        continue;
+                    }
+
+                    // Get all properties from the default instance
+                    var properties = rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Where(p => p.CanRead && p.CanWrite);
+
+                    foreach (var row in table.Rows)
+                    {
+                        int rowFieldsFixed = 0;
+                        int rowArraysFixed = 0;
+
+                        foreach (var prop in properties)
+                        {
+                            // Skip ID, Name, State properties that are handled by base class
+                            if (prop.Name == "ID" || prop.Name == "Name" || prop.Name == "State")
+                                continue;
+
+                            var currentValue = prop.GetValue(row);
+                            var defaultValue = prop.GetValue(defaultInstance);
+
+                            // Check if property is missing (null) and should have a default value
+                            if (currentValue == null && defaultValue != null)
+                            {
+                                // Set the default value
+                                prop.SetValue(row, defaultValue);
+                                rowFieldsFixed++;
+                            }
+                            // Check if property is a List<T> and needs length adjustment
+                            else if (prop.PropertyType.IsGenericType && 
+                                     prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>) &&
+                                     currentValue != null && defaultValue != null)
+                            {
+                                var currentList = currentValue as System.Collections.IList;
+                                var defaultList = defaultValue as System.Collections.IList;
+                                
+                                if (currentList != null && defaultList != null)
+                                {
+                                    int currentCount = currentList.Count;
+                                    int defaultCount = defaultList.Count;
+                                    
+                                    if (currentCount != defaultCount)
+                                    {
+                                        // Adjust list length
+                                        if (currentCount < defaultCount)
+                                        {
+                                            // Add items to reach default count
+                                            var itemType = prop.PropertyType.GetGenericArguments()[0];
+                                            for (int i = currentCount; i < defaultCount; i++)
+                                            {
+                                                object? newItem = itemType switch
+                                                {
+                                                    Type t when t == typeof(string) => string.Empty,
+                                                    Type t when t.IsValueType => Activator.CreateInstance(t),
+                                                    _ => Activator.CreateInstance(itemType)
+                                                };
+                                                currentList.Add(newItem);
+                                            }
+                                        }
+                                        else if (currentCount > defaultCount)
+                                        {
+                                            // Remove excess items
+                                            for (int i = currentCount - 1; i >= defaultCount; i--)
+                                            {
+                                                currentList.RemoveAt(i);
+                                            }
+                                        }
+                                        rowArraysFixed++;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (rowFieldsFixed > 0 || rowArraysFixed > 0)
+                        {
+                            tableRowsFixed++;
+                            tableFieldsFixed += rowFieldsFixed;
+                            tableArraysFixed += rowArraysFixed;
+                        }
+                    }
+
+                    if (tableRowsFixed > 0)
+                    {
+                        totalTablesFixed++;
+                        totalRowsFixed += tableRowsFixed;
+                        totalFieldsFixed += tableFieldsFixed;
+                        totalArraysFixed += tableArraysFixed;
+                        Log($"Table {table.Name}: Fixed {tableFieldsFixed} fields and {tableArraysFixed} arrays in {tableRowsFixed} rows");
+                    }
+                    else
+                    {
+                        Log($"Table {table.Name}: No corrections needed");
+                    }
+                }
+
+                Log($"Field correction completed. Fixed {totalFieldsFixed} fields and {totalArraysFixed} arrays in {totalRowsFixed} rows across {totalTablesFixed} tables.");
+                
+                // Refresh the fields display to show the changes if a row is selected
+                if (SelectedRow != null)
+                {
+                    UpdateFieldsDisplay();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error fixing fields: {ex.Message}");
+            }
         }
     }
 }
