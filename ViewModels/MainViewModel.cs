@@ -38,13 +38,41 @@ namespace GameDataEditor.ViewModels
             }
         }
 
-        // Mapping from table name to data type
-        private static readonly Dictionary<string, Type> TableTypeMapping = new()
+        // Mapping from table name to data type - dynamically populated via reflection
+        private static readonly Dictionary<string, Type> TableTypeMapping = GetTableTypeMapping();
+
+        private static Dictionary<string, Type> GetTableTypeMapping()
         {
-            { "Items", typeof(Item) },
-            { "Monsters", typeof(Monster) },
-            { "Quests", typeof(Quest) }
-        };
+            var mapping = new Dictionary<string, Type>();
+            
+            // Get the assembly containing BaseDataRow
+            var assembly = typeof(BaseDataRow).Assembly;
+            
+            // Get all types that inherit from BaseDataRow and are not abstract
+            var dataRowTypes = assembly.GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(BaseDataRow)) && !t.IsAbstract)
+                .ToList();
+            
+            foreach (var type in dataRowTypes)
+            {
+                // Generate table name from type name (pluralize the name)
+                string tableName = GenerateTableName(type.Name);
+                mapping[tableName] = type;
+            }
+            
+            return mapping;
+        }
+
+        private static string GenerateTableName(string typeName)
+        {
+            // Simple pluralization logic - add 's' for most cases
+            if (typeName.EndsWith("s"))
+                return typeName + "es";
+            else if (typeName.EndsWith("y"))
+                return typeName.Substring(0, typeName.Length - 1) + "ies";
+            else
+                return typeName + "s";
+        }
 
         private ObservableCollection<GameDataTable> _gameTables = new();
         public ObservableCollection<GameDataTable> GameTables
@@ -67,6 +95,7 @@ namespace GameDataEditor.ViewModels
         public ICommand ImportCsvCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
+        public bool IsTableSelected => SelectedTable != null;
 
         private GameDataTable? _selectedTable;
         public GameDataTable? SelectedTable
@@ -79,6 +108,7 @@ namespace GameDataEditor.ViewModels
                     _selectedTable = value;
                     Log($"Table selection changed to: {(_selectedTable == null ? "null" : _selectedTable.Name)}");
                     OnPropertyChanged(nameof(SelectedTable));
+                    OnPropertyChanged(nameof(IsTableSelected));
 
                     if (_selectedTable != null)
                     {
@@ -146,7 +176,8 @@ namespace GameDataEditor.ViewModels
             DeleteRowCommand = new RelayCommand(DeleteRow);
             ExportCsvCommand = new RelayCommand(ExportAllToCsv);
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
-            LoadSampleData();
+            //LoadSampleData();
+            LoadFromFolder();
             Log("ViewModel initialized.");
         }
 
@@ -214,17 +245,48 @@ namespace GameDataEditor.ViewModels
 
         private void AddNewRow()
         {
-            if (SelectedTable == null || SelectedRow == null) return;
+            if (SelectedTable == null) return;
 
-            // 1. Generate new ID by finding the next available slot after the selected row's ID
-            int newId = SelectedRow.ID + 1;
-            var existingIds = new HashSet<int>(SelectedTable.Rows.Select(r => r.ID));
-            while (existingIds.Contains(newId))
+            // If there's no selected row, create a new empty row
+            if (SelectedRow == null)
             {
-                newId++;
+                // Create a new empty instance of the table's data type
+                var newRow = (BaseDataRow?)Activator.CreateInstance(SelectedTable.DataType);
+                if (newRow == null)
+                {
+                    Log("Error: Failed to create a new empty row.");
+                    return;
+                }
+
+                // Generate a new ID starting from 1
+                int newId = 1;
+                var existingIds = new HashSet<int>(SelectedTable.Rows.Select(r => r.ID));
+                while (existingIds.Contains(newId))
+                {
+                    newId++;
+                }
+
+                // Set basic properties
+                newRow.ID = newId;
+                newRow.Name = "New Item";
+                newRow.State = DataState.Active;
+
+                // Add to the collection
+                SelectedTable.Rows.Add(newRow);
+                SelectedRow = newRow; // Auto-select the new row
+                Log($"Created new empty row with ID {newId}");
+                return;
             }
 
-            // 2. Deep copy the selected row via serialization
+            // If there is a selected row, copy it (original logic)
+            int copyId = SelectedRow.ID + 1;
+            var copyExistingIds = new HashSet<int>(SelectedTable.Rows.Select(r => r.ID));
+            while (copyExistingIds.Contains(copyId))
+            {
+                copyId++;
+            }
+
+            // Deep copy the selected row via serialization
             var options = new JsonSerializerOptions
             {
                 WriteIndented = true,
@@ -232,29 +294,29 @@ namespace GameDataEditor.ViewModels
                 Converters = { new JsonStringEnumConverter(), new ForeignKeyConverterFactory() }
             };
             string json = JsonSerializer.Serialize(SelectedRow, SelectedRow.GetType(), options);
-            var newRow = (BaseDataRow?)JsonSerializer.Deserialize(json, SelectedRow.GetType(), options);
+            var copiedRow = (BaseDataRow?)JsonSerializer.Deserialize(json, SelectedRow.GetType(), options);
 
-            if (newRow == null)
+            if (copiedRow == null)
             {
                 Log("Error: Failed to create a copy of the selected row.");
                 return;
             }
 
-            // 3. Update the ID and Name
-            newRow.ID = newId;
-            newRow.Name += " (Copy)";
+            // Update the ID and Name
+            copiedRow.ID = copyId;
+            copiedRow.Name += " (Copy)";
 
-            // 4. Add to the collection in sorted order
+            // Add to the collection in sorted order
             int insertIndex = 0;
             for (int i = 0; i < SelectedTable.Rows.Count; i++)
             {
-                if (SelectedTable.Rows[i].ID > newRow.ID)
+                if (SelectedTable.Rows[i].ID > copiedRow.ID)
                 {
                     break;
                 }
                 insertIndex++;
             }
-            SelectedTable.Rows.Insert(insertIndex, newRow);
+            SelectedTable.Rows.Insert(insertIndex, copiedRow);
         }
 
         private void DeleteRow()
@@ -360,29 +422,7 @@ namespace GameDataEditor.ViewModels
         {
             string? directory = _appSettings.DataFolderPath;
 
-            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
-            {
-                Log("Data folder not set or invalid. Please configure it in Settings.");
-                var openFileDialog = new OpenFileDialog
-                {
-                    Title = "Select a Data Folder",
-                    CheckFileExists = false,
-                    CheckPathExists = true,
-                    ValidateNames = false,
-                    FileName = "_Folder_Selection_"
-                };
-
-                if (openFileDialog.ShowDialog() != true) return;
-                
-                directory = Path.GetDirectoryName(openFileDialog.FileName);
-            }
-
-            if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
-            {
-                Log("Invalid directory selected.");
-                return;
-            }
-
+            // Always create tables for all defined types, even if directory is invalid
             var loadedTables = new ObservableCollection<GameDataTable>();
             
             var options = new JsonSerializerOptions
@@ -394,53 +434,104 @@ namespace GameDataEditor.ViewModels
 
             foreach (var kvp in TableTypeMapping)
             {
-                string fileName = $"{kvp.Key}.json";
-                string filePath = Path.Combine(directory, fileName);
-
-                if (!File.Exists(filePath)) continue;
-
                 var table = new GameDataTable(kvp.Key, kvp.Value);
-                string jsonString = File.ReadAllText(filePath);
-
-                var rows = (IEnumerable<object>?)JsonSerializer.Deserialize(jsonString, typeof(ObservableCollection<>).MakeGenericType(kvp.Value), options);
-                if (rows != null)
+                
+                // Only try to load data if directory exists and is valid
+                if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
                 {
-                    var sortedRows = rows.Cast<BaseDataRow>().OrderBy(r => r.ID);
-                    foreach (var row in sortedRows)
+                    string fileName = $"{kvp.Key}.json";
+                    string filePath = Path.Combine(directory, fileName);
+
+                    if (File.Exists(filePath))
                     {
-                        table.Rows.Add(row);
+                        try
+                        {
+                            string jsonString = File.ReadAllText(filePath);
+                            var rows = (IEnumerable<object>?)JsonSerializer.Deserialize(jsonString, typeof(ObservableCollection<>).MakeGenericType(kvp.Value), options);
+                            if (rows != null)
+                            {
+                                var sortedRows = rows.Cast<BaseDataRow>().OrderBy(r => r.ID);
+                                foreach (var row in sortedRows)
+                                {
+                                    table.Rows.Add(row);
+                                }
+                            }
+                            Log($"Loaded {table.Rows.Count} rows from {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Error loading {fileName}: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Log($"No data file found for {table.Name}. Creating empty table.");
                     }
                 }
+                else
+                {
+                    Log($"Creating empty table for {table.Name} (no valid data directory)");
+                }
+                
                 loadedTables.Add(table);
             }
 
             GameTables = loadedTables;
             SelectedTable = null;
             SelectedRow = null;
-            Log($"Data loaded from {directory}.");
+            
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                Log($"Data loaded from {directory}.");
+            }
+            else
+            {
+                Log("No valid data directory set. All tables are empty.");
+            }
         }
 
         private void SaveAllToFolder()
         {
             string? targetDirectory = _appSettings.DataFolderPath;
-            if (string.IsNullOrEmpty(targetDirectory))
+            bool needToUpdateSettings = false;
+            
+            // Check if directory is empty or doesn't exist
+            if (string.IsNullOrEmpty(targetDirectory) || !Directory.Exists(targetDirectory))
             {
-                Log("Data folder not set. Please configure it in Settings or use Save As.");
+                Log("Data folder not set or invalid. Please select a folder to save files.");
                 var saveFileDialog = new SaveFileDialog
                 {
                     Title = "Select Folder to Save Files",
-                    FileName = "_Select_a_Folder_"
+                    FileName = "_Select_a_Folder_",
+                    InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
                 };
 
                 if (saveFileDialog.ShowDialog() != true) return;
 
                 targetDirectory = Path.GetDirectoryName(saveFileDialog.FileName);
+                needToUpdateSettings = true;
             }
 
             if (string.IsNullOrEmpty(targetDirectory))
             {
                 Log("Invalid save directory.");
                 return;
+            }
+
+            // Ensure the directory exists
+            if (!Directory.Exists(targetDirectory))
+            {
+                try
+                {
+                    Directory.CreateDirectory(targetDirectory);
+                    Log($"Created directory: {targetDirectory}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error creating directory: {ex.Message}");
+                    MessageBox.Show($"Error creating directory: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
             }
 
             var options = new JsonSerializerOptions 
@@ -450,25 +541,42 @@ namespace GameDataEditor.ViewModels
                 Converters = { new JsonStringEnumConverter(), new ForeignKeyConverterFactory() }
             };
 
-            foreach (var table in GameTables)
+            try
             {
-                string filePath = Path.Combine(targetDirectory, $"{table.Name}.json");
-
-                using var stream = new MemoryStream();
-                using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
-
-                writer.WriteStartArray();
-                foreach (var row in table.Rows)
+                foreach (var table in GameTables)
                 {
-                    // Serialize each object with its actual runtime type to avoid the '$type' field
-                    JsonSerializer.Serialize(writer, row, row.GetType(), options);
-                }
-                writer.WriteEndArray();
-                writer.Flush();
+                    string filePath = Path.Combine(targetDirectory, $"{table.Name}.json");
 
-                File.WriteAllBytes(filePath, stream.ToArray());
+                    using var stream = new MemoryStream();
+                    using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+
+                    writer.WriteStartArray();
+                    foreach (var row in table.Rows)
+                    {
+                        // Serialize each object with its actual runtime type to avoid the '$type' field
+                        JsonSerializer.Serialize(writer, row, row.GetType(), options);
+                    }
+                    writer.WriteEndArray();
+                    writer.Flush();
+
+                    File.WriteAllBytes(filePath, stream.ToArray());
+                }
+                
+                // Update settings if needed
+                if (needToUpdateSettings)
+                {
+                    _appSettings.DataFolderPath = targetDirectory;
+                    _settingsService.SaveSettings(_appSettings);
+                    Log($"Saved data folder path to settings: {targetDirectory}");
+                }
+                
+                Log($"All data saved to {targetDirectory}.");
             }
-            Log($"All data saved to {targetDirectory}.");
+            catch (Exception ex)
+            {
+                Log($"Error saving data: {ex.Message}");
+                MessageBox.Show($"Error saving data: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         public void UpdateForeignKeyReferences(Type changedDataType, int oldId, int newId)
@@ -567,6 +675,67 @@ namespace GameDataEditor.ViewModels
             foreach (var field in SelectedRowFields)
             {
                 SetExpandedRecursively(field, _appSettings.ExpandNodesByDefault);
+            }
+        }
+
+        /// <summary>
+        /// Fixes array lengths for data objects to match model definitions
+        /// </summary>
+        /// <param name="dataRow">The data row object to fix</param>
+        private void FixArrayLengths(BaseDataRow dataRow)
+        {
+            // Get the type of the data row
+            var rowType = dataRow.GetType();
+            
+            // Create a default instance of the same type to get the default array lengths
+            var defaultInstance = Activator.CreateInstance(rowType) as BaseDataRow;
+            if (defaultInstance == null) return;
+            
+            // Get all properties that are List<T> types
+            var properties = rowType.GetProperties()
+                .Where(p => p.PropertyType.IsGenericType && 
+                           p.PropertyType.GetGenericTypeDefinition() == typeof(List<>));
+            
+            foreach (var prop in properties)
+            {
+                // Get the current value from the data row
+                var currentValue = prop.GetValue(dataRow);
+                if (currentValue == null) continue;
+                
+                // Get the default value from the default instance
+                var defaultValue = prop.GetValue(defaultInstance);
+                if (defaultValue == null) continue;
+                
+                // Get the Count property from both lists
+                var currentCount = (int)currentValue.GetType().GetProperty("Count")!.GetValue(currentValue)!;
+                var defaultCount = (int)defaultValue.GetType().GetProperty("Count")!.GetValue(defaultValue)!;
+                
+                // If the current count is less than the default count, we need to fix it
+                if (currentCount < defaultCount)
+                {
+                    var listType = prop.PropertyType.GetGenericArguments()[0];
+                    
+                    // Get the actual list so we can add items to it
+                    var list = currentValue as System.Collections.IList;
+                    if (list == null) continue;
+                    
+                    // Add items to reach the default count
+                    while (list.Count < defaultCount)
+                    {
+                        // Create default value based on the list type
+                        object? newItem = listType switch
+                        {
+                            Type t when t == typeof(string) => string.Empty,
+                            Type t when t.IsValueType => Activator.CreateInstance(t),
+                            _ => Activator.CreateInstance(listType)
+                        };
+                        
+                        if (newItem != null)
+                        {
+                            list.Add(newItem);
+                        }
+                    }
+                }
             }
         }
 

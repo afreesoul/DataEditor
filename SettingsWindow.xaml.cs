@@ -13,17 +13,15 @@ namespace GameDataEditor
         {
             InitializeComponent();
             _appSettings = appSettings;
-            DataContext = new SettingsViewModel(_appSettings.DataFolderPath ?? string.Empty, _appSettings.CsvFolderPath ?? string.Empty, _appSettings.ExpandNodesByDefault);
-        }
-
-        private void OkButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = true;
-        }
-
-        private void CancelButton_Click(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
+            var viewModel = new SettingsViewModel(_appSettings.DataFolderPath ?? string.Empty, _appSettings.CsvFolderPath ?? string.Empty, _appSettings.ExpandNodesByDefault);
+            DataContext = viewModel;
+            
+            // Subscribe to the RequestClose event
+            viewModel.RequestClose += (result) =>
+            {
+                DialogResult = result;
+                Close();
+            };
         }
     }
 }
