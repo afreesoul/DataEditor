@@ -180,7 +180,8 @@ namespace GameDataEditor.ViewModels
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
             FixFieldsCommand = new RelayCommand(FixFields);
 
-            LoadFromFolder();
+            //LoadFromFolder();
+            LoadFromCsvFolder();
             Log("ViewModel initialized.");
         }
 
@@ -417,9 +418,106 @@ namespace GameDataEditor.ViewModels
             catch (Exception ex)
             {
                 Log($"Error importing from CSV: {ex.Message}");
-                MessageBox.Show($"An error occurred while importing from CSV:\n{ex.Message}", "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        /// <summary>
+        /// 从CSV文件夹加载数据并初始化GameTables（模仿LoadFromFolder函数）
+        /// </summary>
+        private void LoadFromCsvFolder()
+        {
+            string? directory = _appSettings.CsvFolderPath;
+
+            // 总是为所有定义的类型创建表，即使目录无效
+            var loadedTables = new ObservableCollection<GameDataTable>();
+            var csvService = new CsvService();
+            
+            foreach (var kvp in TableTypeMapping)
+            {
+                var table = new GameDataTable(kvp.Key, kvp.Value);
+                
+                // 只有在目录存在且有效时才尝试加载数据
+                if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+                {
+                    string fileName = $"{kvp.Key}.csv";
+                    string filePath = Path.Combine(directory, fileName);
+
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string csvContent = File.ReadAllText(filePath, Encoding.UTF8);
+                            
+                            // 解析CSV内容
+                            var records = ParseCsvFromContent(csvContent);
+                            if (records.Count > 0)
+                            {
+                                // 为每个记录创建新行
+                                foreach (var record in records)
+                                {
+                                    if (record.TryGetValue("ID", out string? idString) && int.TryParse(idString, out int id))
+                                    {
+                                        // 创建新行
+                                        var newRow = Activator.CreateInstance(kvp.Value) as BaseDataRow;
+                                        if (newRow != null)
+                                        {
+                                            newRow.ID = id;
+                                            
+                                            // 使用CSV服务的方法填充数据
+                                            UpdateRowFromCsvRecord(newRow, record);
+                                            
+                                            table.Rows.Add(newRow);
+                                        }
+                                    }
+                                }
+                                
+                                // 按ID排序
+                                var sortedRows = table.Rows.OrderBy(r => r.ID).ToList();
+                                table.Rows.Clear();
+                                foreach (var row in sortedRows)
+                                {
+                                    table.Rows.Add(row);
+                                }
+                            }
+                            
+                            Log($"Loaded {table.Rows.Count} rows from CSV {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log($"Error loading CSV {fileName}: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Log($"No CSV file found for {table.Name}. Creating empty table.");
+                    }
+                }
+                else
+                {
+                    Log($"Creating empty table for {table.Name} (no valid CSV directory)");
+                }
+                
+                loadedTables.Add(table);
+            }
+
+            GameTables = loadedTables;
+            
+            // 确保Monster数据的格式正确
+            DataConverter.FixAllMonsterData(GameTables);
+            
+            SelectedTable = null;
+            SelectedRow = null;
+            
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                Log($"Data loaded from CSV folder: {directory}.");
+            }
+            else
+            {
+                Log("No valid CSV directory set. All tables are empty.");
+            }
+        }
+    
 
         private void LoadFromFolder()
         {
@@ -760,152 +858,761 @@ namespace GameDataEditor.ViewModels
                 return;
             }
 
-            Log("Starting field correction for all tables...");
+            Log("Starting field correction by fixing CSV files and reloading...");
             
-            int totalTablesFixed = 0;
-            int totalRowsFixed = 0;
-            int totalFieldsFixed = 0;
-            int totalArraysFixed = 0;
-
             try
             {
-                foreach (var table in GameTables)
-                {
-                    if (table.Rows.Count == 0)
-                    {
-                        Log($"Skipping empty table: {table.Name}");
-                        continue;
-                    }
-
-                    Log($"Fixing fields for table: {table.Name}");
-                    int tableRowsFixed = 0;
-                    int tableFieldsFixed = 0;
-                    int tableArraysFixed = 0;
-
-                    // Get the data type for this table
-                    var rowType = table.DataType;
-                    
-                    // Create a default instance to compare against
-                    var defaultInstance = Activator.CreateInstance(rowType) as BaseDataRow;
-                    if (defaultInstance == null)
-                    {
-                        Log($"Error: Failed to create default instance for {rowType.Name}");
-                        continue;
-                    }
-
-                    // Get all properties from the default instance
-                    var properties = rowType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Where(p => p.CanRead && p.CanWrite);
-
-                    foreach (var row in table.Rows)
-                    {
-                        int rowFieldsFixed = 0;
-                        int rowArraysFixed = 0;
-
-                        foreach (var prop in properties)
-                        {
-                            // Skip ID, Name, State properties that are handled by base class
-                            if (prop.Name == "ID" || prop.Name == "Name" || prop.Name == "State")
-                                continue;
-
-                            var currentValue = prop.GetValue(row);
-                            var defaultValue = prop.GetValue(defaultInstance);
-
-                            // Check if property is missing (null) and should have a default value
-                            if (currentValue == null && defaultValue != null)
-                            {
-                                // Set the default value
-                                prop.SetValue(row, defaultValue);
-                                rowFieldsFixed++;
-                            }
-                        // Check if property is a List<T> or FixedLengthArray<T> and needs length adjustment
-                        else if ((prop.PropertyType.IsGenericType && 
-                                 (prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>) ||
-                                  prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))) &&
-                                 currentValue != null && defaultValue != null)
-                        {
-                            var currentList = currentValue as System.Collections.IList;
-                            var defaultList = defaultValue as System.Collections.IList;
-                            
-                            if (currentList != null && defaultList != null)
-                            {
-                                int currentCount = currentList.Count;
-                                int defaultCount = defaultList.Count;
-                                
-                                if (currentCount != defaultCount)
-                                {
-                                    // For FixedLengthArray, we can't change the length, so we only handle List<T>
-                                    if (prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
-                                    {
-                                        // Adjust list length
-                                        if (currentCount < defaultCount)
-                                        {
-                                            // Add items to reach default count
-                                            var itemType = prop.PropertyType.GetGenericArguments()[0];
-                                            for (int i = currentCount; i < defaultCount; i++)
-                                            {
-                                                object? newItem = itemType switch
-                                                {
-                                                    Type t when t == typeof(string) => string.Empty,
-                                                    Type t when t.IsValueType => Activator.CreateInstance(t),
-                                                    _ => Activator.CreateInstance(itemType)
-                                                };
-                                                currentList.Add(newItem);
-                                            }
-                                        }
-                                        else if (currentCount > defaultCount)
-                                        {
-                                            // Remove excess items
-                                            for (int i = currentCount - 1; i >= defaultCount; i--)
-                                            {
-                                                currentList.RemoveAt(i);
-                                            }
-                                        }
-                                        rowArraysFixed++;
-                                    }
-                                    // For FixedLengthArray, we just log the mismatch but don't change it
-                                    else if (prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
-                                    {
-                                        Log($"Warning: FixedLengthArray '{prop.Name}' has mismatched length (current: {currentCount}, default: {defaultCount}) but cannot be resized");
-                                    }
-                                }
-                            }
-                        }
-                        }
-
-                        if (rowFieldsFixed > 0 || rowArraysFixed > 0)
-                        {
-                            tableRowsFixed++;
-                            tableFieldsFixed += rowFieldsFixed;
-                            tableArraysFixed += rowArraysFixed;
-                        }
-                    }
-
-                    if (tableRowsFixed > 0)
-                    {
-                        totalTablesFixed++;
-                        totalRowsFixed += tableRowsFixed;
-                        totalFieldsFixed += tableFieldsFixed;
-                        totalArraysFixed += tableArraysFixed;
-                        Log($"Table {table.Name}: Fixed {tableFieldsFixed} fields and {tableArraysFixed} arrays in {tableRowsFixed} rows");
-                    }
-                    else
-                    {
-                        Log($"Table {table.Name}: No corrections needed");
-                    }
-                }
-
-                Log($"Field correction completed. Fixed {totalFieldsFixed} fields and {totalArraysFixed} arrays in {totalRowsFixed} rows across {totalTablesFixed} tables.");
+                // 第一步：先导出当前数据到CSV（包含修正后的数据）
+                Log("Step 1: Exporting current data to CSV with field corrections...");
+                ExportAllToCsvWithFixes();
                 
-                // Refresh the fields display to show the changes if a row is selected
-                if (SelectedRow != null)
-                {
-                    UpdateFieldsDisplay();
-                }
+                // 第二步：重新从CSV加载数据（使用新的LoadFromCsvFolder函数）
+                Log("Step 2: Reloading data from corrected CSV files...");
+                LoadFromCsvFolder();
+                
+                Log("Field correction completed by CSV fix and reload method.");
             }
             catch (Exception ex)
             {
                 Log($"Error fixing fields: {ex.Message}");
+            }
+        }
+
+        private void ExportAllToCsvWithFixes()
+        {
+            if (string.IsNullOrEmpty(_appSettings.CsvFolderPath))
+            {
+                Log("CSV folder path is not set. Please configure it in Settings.");
+                return;
+            }
+
+            if (!Directory.Exists(_appSettings.CsvFolderPath))
+            {
+                Directory.CreateDirectory(_appSettings.CsvFolderPath);
+                Log($"Created CSV folder: {_appSettings.CsvFolderPath}");
+            }
+
+            int totalTablesExported = 0;
+            int totalRowsExported = 0;
+
+            foreach (var table in GameTables)
+            {
+                if (table.Rows.Count == 0)
+                {
+                    Log($"Skipping empty table: {table.Name}");
+                    continue;
+                }
+
+                Log($"Fixing and exporting table: {table.Name}");
+
+                // 获取表的默认实例用于修正
+                var defaultInstance = Activator.CreateInstance(table.DataType) as BaseDataRow;
+                if (defaultInstance == null)
+                {
+                    Log($"Error: Failed to create default instance for {table.DataType.Name}");
+                    continue;
+                }
+                if (defaultInstance != null)
+                    InitializeFixedLengthArrays(defaultInstance);
+
+                // 修正表中的所有行
+                var fixedRows = new List<BaseDataRow>();
+                foreach (var row in table.Rows)
+                {
+                    // 创建行的深拷贝以避免修改原始数据
+                    var fixedRow = Activator.CreateInstance(table.DataType) as BaseDataRow;
+                    if (fixedRow == null) continue;
+
+                    // 复制基础属性
+                    fixedRow.ID = row.ID;
+                    fixedRow.Name = row.Name;
+                    fixedRow.State = row.State;
+
+                    // 递归修正所有属性
+                    int fieldsFixed = 0, arraysFixed = 0;
+                    if (fixedRow != null && row != null && defaultInstance != null)
+                        FixObjectRecursivelyForExport(fixedRow, row, defaultInstance, ref fieldsFixed, ref arraysFixed);
+
+                    // 确保fixedRow不为null再添加到列表
+                    if (fixedRow != null)
+                        fixedRows.Add(fixedRow);
+                    
+                    if ((fieldsFixed > 0 || arraysFixed > 0) && row != null)
+                    {
+                        Log($"Row {row.ID}: Fixed {fieldsFixed} fields and {arraysFixed} arrays for export");
+                    }
+                }
+
+                // 导出修正后的数据到CSV
+                var csvService = new CsvService();
+                var fileName = Path.Combine(_appSettings.CsvFolderPath, $"{table.Name}.csv");
+                
+                try
+                {
+                    // 创建临时的GameDataTable用于导出
+                    var tempTable = new GameDataTable(table.Name, table.DataType);
+                    foreach (var row in fixedRows)
+                    {
+                        tempTable.Rows.Add(row);
+                    }
+                    
+                    // 生成CSV内容并写入文件
+                    var csvContent = csvService.GenerateCsv(tempTable);
+                    File.WriteAllText(fileName, csvContent, Encoding.UTF8);
+                    
+                    totalTablesExported++;
+                    totalRowsExported += fixedRows.Count;
+                    Log($"Exported {fixedRows.Count} fixed rows to {fileName}");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Error exporting table {table.Name}: {ex.Message}");
+                }
+            }
+
+            Log($"Exported {totalRowsExported} fixed rows from {totalTablesExported} tables to CSV.");
+        }
+
+        private void FixObjectRecursivelyForExport(object targetObj, object sourceObj, object defaultObj, ref int fieldsFixed, ref int arraysFixed)
+        {
+            if (targetObj == null || sourceObj == null || defaultObj == null)
+                return;
+
+            var objType = targetObj.GetType();
+            if (objType != sourceObj.GetType() || objType != defaultObj.GetType())
+                return;
+
+            // 获取所有可读写的属性
+            var properties = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanRead && p.CanWrite);
+
+            foreach (var prop in properties)
+            {
+                // 跳过基础属性
+                if (prop.Name == "ID" || prop.Name == "Name" || prop.Name == "State")
+                {
+                    // 直接复制基础属性
+                    var sourceValue = prop.GetValue(sourceObj);
+                    prop.SetValue(targetObj, sourceValue);
+                    continue;
+                }
+
+                var sourceValueForProp = prop.GetValue(sourceObj);
+                var defaultValue = prop.GetValue(defaultObj);
+
+                // 处理FixedLengthArray类型
+                if (prop.PropertyType.IsGenericType && 
+                    prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
+                {
+                    var sourceArray = sourceValueForProp as System.Collections.IList;
+                    var defaultArray = defaultValue as System.Collections.IList;
+                    
+                    if (sourceArray != null && defaultArray != null)
+                    {
+                        // 创建新的FixedLengthArray实例
+                        var fixedArray = Activator.CreateInstance(prop.PropertyType, defaultArray.Count) as System.Collections.IList;
+                        
+                        if (fixedArray != null)
+                        {
+                            // 复制并修正数组元素
+                            for (int i = 0; i < defaultArray.Count; i++)
+                            {
+                                var sourceElement = SafeGetArrayElement(sourceArray, i);
+                                var defaultElement = SafeGetArrayElement(defaultArray, i);
+                                
+                                // 修正逻辑：如果源数据缺失或为空，使用默认值
+                                if (sourceElement == null || (sourceElement is string str && string.IsNullOrEmpty(str)))
+                                {
+                                    if (defaultElement != null)
+                                    {
+                                        fixedArray[i] = defaultElement;
+                                        arraysFixed++;
+                                    }
+                                }
+                                else
+                                {
+                                    // 保持源数据
+                                    fixedArray[i] = sourceElement;
+                                }
+                            }
+                            
+                            prop.SetValue(targetObj, fixedArray);
+                        }
+                    }
+                }
+                else
+                {
+                    // 对于非数组属性，直接复制源数据
+                    prop.SetValue(targetObj, sourceValueForProp);
+                }
+            }
+        }
+
+        private void FixObjectRecursively(object currentObj, object defaultObj, ref int fieldsFixed, ref int arraysFixed)
+        {
+            if (currentObj == null || defaultObj == null)
+                return;
+
+            var objType = currentObj.GetType();
+            var defaultType = defaultObj.GetType();
+
+            // 确保类型匹配
+            if (objType != defaultType)
+                return;
+
+            // 获取所有可读写的属性
+            var properties = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanRead && p.CanWrite);
+
+            foreach (var prop in properties)
+            {
+                // 跳过ID、Name、State等基础属性
+                if (prop.Name == "ID" || prop.Name == "Name" || prop.Name == "State")
+                    continue;
+
+                var currentValue = prop.GetValue(currentObj);
+                var defaultValue = prop.GetValue(defaultObj);
+
+                // 处理属性为null的情况
+                if (currentValue == null && defaultValue != null)
+                {
+                    // 如果是复杂类型，递归创建新实例
+                    if (defaultValue.GetType().IsClass && defaultValue.GetType() != typeof(string))
+                    {
+                        var newInstance = Activator.CreateInstance(defaultValue.GetType());
+                        prop.SetValue(currentObj, newInstance);
+                        fieldsFixed++;
+                        
+                        // 递归修正新创建的实例
+                        if (newInstance != null && defaultValue != null)
+                            FixObjectRecursively(newInstance, defaultValue, ref fieldsFixed, ref arraysFixed);
+                    }
+                    else
+                    {
+                        // 简单类型直接赋值
+                        prop.SetValue(currentObj, defaultValue);
+                        fieldsFixed++;
+                    }
+                }
+                else if (currentValue != null && defaultValue != null)
+                {
+                    // 处理FixedLengthArray<T>类型
+                    if (prop.PropertyType.IsGenericType && 
+                        prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
+                    {
+                        var currentArray = currentValue as System.Collections.IList;
+                        var defaultArray = defaultValue as System.Collections.IList;
+                        
+                        if (currentArray != null && defaultArray != null)
+                        {
+                            int currentCount = currentArray.Count;
+                            int defaultCount = defaultArray.Count;
+                            
+                            // 添加详细的调试信息
+                            Log($"FixedLengthArray '{prop.Name}' analysis:");
+                            Log($"  Current array type: {currentArray.GetType()}");
+                            Log($"  Default array type: {defaultArray.GetType()}");
+                            Log($"  Current count: {currentCount}");
+                            Log($"  Default count: {defaultCount}");
+                            
+                            // 输出实际的内容
+                            Log($"  Current values: {string.Join(", ", Enumerable.Range(0, Math.Min(currentCount, 5)).Select(i => $"[{i}]={SafeGetArrayElement(currentArray, i) ?? "null"}"))}");
+                            Log($"  Default values: {string.Join(", ", Enumerable.Range(0, Math.Min(defaultCount, 5)).Select(i => $"[{i}]={SafeGetArrayElement(defaultArray, i) ?? "null"}"))}");
+                            
+                            if (currentCount != defaultCount)
+                            {
+                                Log($"FixedLengthArray '{prop.Name}' length mismatch: current={currentCount}, default={defaultCount}");
+                                
+                                // 对于FixedLengthArray，我们专门处理这种情况
+                                // FixedLengthArray的Count始终返回Capacity，所以我们需要检查实际内容
+                                var elementType = prop.PropertyType.GetGenericArguments()[0];
+                                
+                                // 检查实际需要修正的元素
+                                bool arrayModified = false;
+                                int actualElementsFixed = 0;
+                                
+                                // 对于FixedLengthArray，我们需要处理所有默认索引
+                                // 即使当前没有那么多实际存储的元素，也要修正
+                                for (int i = 0; i < defaultCount; i++)
+                                {
+                                    // 安全地获取当前元素的实际值
+                                    var currentElement = SafeGetArrayElement(currentArray, i);
+                                    var defaultElement = SafeGetArrayElement(defaultArray, i);
+                                    
+                                    // 判断是否需要修正
+                                    bool needsFix = false;
+                                    
+                                    // 首先检查默认值是否真的为null，还是空字符串
+                                    string defaultElementStr = defaultElement?.ToString() ?? "null";
+                                    string currentElementStr = currentElement?.ToString() ?? "null";
+                                    
+                                    if (currentElement == null && defaultElement != null)
+                                    {
+                                        // 当前元素为null，但默认元素不为null → 需要修正（填充缺失元素）
+                                        needsFix = true;
+                                        Log($"  Element [{i}]: current=null, default='{defaultElementStr}' → needs fix (filling missing element)");
+                                    }
+                                    else if (currentElement != null && defaultElement != null)
+                                    {
+                                        // 两者都不为null，但如果是字符串且当前值为空字符串，也需要修正
+                                        if (currentElement is string currentStr && defaultElement is string defaultStr)
+                                        {
+                                            // 如果当前值是空字符串，即使默认值也是空字符串，也要确保修正
+                                            if (string.IsNullOrEmpty(currentStr))
+                                            {
+                                                needsFix = true;
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → needs fix (ensuring empty string)");
+                                            }
+                                            else if (currentStr != defaultStr)
+                                            {
+                                                // 两者都不为空但值不同 → 暂时不修正
+                                                needsFix = false;
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → NO fix needed (different values)");
+                                            }
+                                            else
+                                            {
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → no fix needed");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // 非字符串类型，只有当当前值为null时才修正
+                                            if (currentElement == null)
+                                            {
+                                                needsFix = true;
+                                                Log($"  Element [{i}]: current=null, default='{defaultElement}' → needs fix");
+                                            }
+                                            else
+                                            {
+                                                Log($"  Element [{i}]: current='{currentElement}', default='{defaultElement}' → no fix needed");
+                                            }
+                                        }
+                                    }
+                                    else if (currentElement != null && defaultElement != null)
+                                    {
+                                        // 两者都不为null，检查是否需要修正
+                                        if (currentElement is string currentStr && defaultElement is string defaultStr)
+                                        {
+                                            // 对于字符串，特殊处理：只有当当前值为空且默认值不为空时才修正
+                                            if (string.IsNullOrEmpty(currentStr) && !string.IsNullOrEmpty(defaultStr))
+                                            {
+                                                needsFix = true;
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → needs fix (empty to non-empty)");
+                                            }
+                                            else if (!string.IsNullOrEmpty(currentStr) && string.IsNullOrEmpty(defaultStr))
+                                            {
+                                                // 当前值不为空但默认值为空 → 不要修正！保持当前值
+                                                needsFix = false;
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → NO fix needed (keep current value)");
+                                            }
+                                            else if (currentStr != defaultStr)
+                                            {
+                                                // 两者都不为空但值不同 → 暂时不修正
+                                                needsFix = false;
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → NO fix needed (different values)");
+                                            }
+                                            else
+                                            {
+                                                Log($"  Element [{i}]: current='{currentStr}', default='{defaultStr}' → no fix needed");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            // 非字符串类型，只有当当前值为null时才修正
+                                            if (currentElement == null)
+                                            {
+                                                needsFix = true;
+                                                Log($"  Element [{i}]: current=null, default='{defaultElement}' → needs fix");
+                                            }
+                                            else
+                                            {
+                                                Log($"  Element [{i}]: current='{currentElement}', default='{defaultElement}' → no fix needed");
+                                            }
+                                        }
+                                    }
+                                    else if (currentElement != null && defaultElement == null)
+                                    {
+                                        // 当前元素不为null，但默认元素为null → 不要修正！保持当前值
+                                        needsFix = false;
+                                        Log($"  Element [{i}]: current='{currentElementStr}', default=null → NO fix needed (keep current value)");
+                                    }
+                                    else if (currentElement == null && defaultElement == null)
+                                    {
+                                        // 两者都为null，检查是否需要创建默认值
+                                        var newDefaultValue = CreateDefaultValue(elementType);
+                                        if (newDefaultValue != null)
+                                        {
+                                            needsFix = true;
+                                            Log($"  Element [{i}]: current=null, default=null → needs fix (creating default value)");
+                                        }
+                                        else
+                                        {
+                                            Log($"  Element [{i}]: current=null, default=null → no fix needed");
+                                        }
+                                    }
+                                    
+                                    if (needsFix)
+                                    {
+                                        // 执行修正
+                                        try
+                                        {
+                                            if (defaultElement != null)
+                                            {
+                                                currentArray[i] = defaultElement;
+                                                Log($"Fixed FixedLengthArray '{prop.Name}'[{i}] from '{currentElement}' to '{defaultElement}'");
+                                            }
+                                            else
+                                            {
+                                                var newDefaultValue = CreateDefaultValue(elementType);
+                                                if (newDefaultValue != null)
+                                                {
+                                                    currentArray[i] = newDefaultValue;
+                                                    Log($"Fixed FixedLengthArray '{prop.Name}'[{i}] from '{currentElement}' to '{newDefaultValue}'");
+                                                }
+                                            }
+                                            arrayModified = true;
+                                            actualElementsFixed++;
+                                        }
+                                        catch (ArgumentOutOfRangeException ex)
+                                        {
+                                            Log($"Error fixing element [{i}] in FixedLengthArray '{prop.Name}': {ex.Message}");
+                                        }
+                                        catch (IndexOutOfRangeException ex)
+                                        {
+                                            Log($"Error fixing element [{i}] in FixedLengthArray '{prop.Name}': {ex.Message}");
+                                        }
+                                    }
+                                    
+                                    // 递归修正复杂类型
+                                    if (currentElement != null && defaultElement != null && 
+                                        currentElement.GetType().IsClass && currentElement.GetType() != typeof(string))
+                                    {
+                                        if (currentElement != null && defaultElement != null)
+                                            FixObjectRecursively(currentElement, defaultElement, ref fieldsFixed, ref arraysFixed);
+                                    }
+                                }
+                                
+                                if (arrayModified)
+                                {
+                                    arraysFixed += actualElementsFixed;
+                                    Log($"FixedLengthArray '{prop.Name}' corrected {actualElementsFixed} elements");
+                                }
+                                else
+                                {
+                                    Log($"FixedLengthArray '{prop.Name}' no elements needed correction (but length mismatch detected)");
+                                }
+                            }
+                            else
+                            {
+                                // 长度相同，但仍需检查每个元素
+                                var elementType = prop.PropertyType.GetGenericArguments()[0];
+                                bool arrayModified = false;
+                                int actualElementsFixed = 0;
+                                
+                                for (int i = 0; i < defaultCount; i++)
+                                {
+                                    var currentElement = SafeGetArrayElement(currentArray, i);
+                                    var defaultElement = SafeGetArrayElement(defaultArray, i);
+                                    
+                                    if (currentElement != null && defaultElement != null && 
+                                        currentElement.GetType().IsClass && currentElement.GetType() != typeof(string))
+                                    {
+                                        if (currentElement != null && defaultElement != null)
+                                            FixObjectRecursively(currentElement, defaultElement, ref fieldsFixed, ref arraysFixed);
+                                    }
+                                }
+                                
+                                if (arrayModified)
+                                {
+                                    arraysFixed += actualElementsFixed;
+                                    Log($"FixedLengthArray '{prop.Name}' corrected {actualElementsFixed} elements");
+                                }
+                            }
+                        }
+                    }
+                    // 处理List<T>类型
+                    else if (prop.PropertyType.IsGenericType && 
+                             prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
+                    {
+                        var currentList = currentValue as System.Collections.IList;
+                        var defaultList = defaultValue as System.Collections.IList;
+                        
+                        if (currentList != null && defaultList != null)
+                        {
+                            int currentCount = currentList.Count;
+                            int defaultCount = defaultList.Count;
+                            
+                            if (currentCount != defaultCount)
+                            {
+                                // 调整列表长度
+                                var elementType = prop.PropertyType.GetGenericArguments()[0];
+                                
+                                if (currentCount < defaultCount)
+                                {
+                                    // 添加元素以达到默认长度
+                                    for (int i = currentCount; i < defaultCount; i++)
+                                    {
+                                        object? newItem = CreateDefaultValue(elementType);
+                                        currentList.Add(newItem);
+                                        arraysFixed++;
+                                    }
+                                }
+                                else if (currentCount > defaultCount)
+                                {
+                                    // 移除多余的元素
+                                    for (int i = currentCount - 1; i >= defaultCount; i--)
+                                    {
+                                        currentList.RemoveAt(i);
+                                        arraysFixed++;
+                                    }
+                                }
+                            }
+                            
+                        // 修正列表中的每个元素
+                        for (int i = 0; i < Math.Min(currentList.Count, defaultList.Count); i++)
+                        {
+                            var currentElement = currentList[i];
+                            var defaultElement = defaultList[i];
+                            
+                            if (currentElement != null && defaultElement != null && 
+                                currentElement.GetType().IsClass && currentElement.GetType() != typeof(string))
+                            {
+                                // 递归修正列表元素
+                                FixObjectRecursively(currentElement, defaultElement, ref fieldsFixed, ref arraysFixed);
+                            }
+                            else if (currentElement == null && defaultElement != null)
+                            {
+                                // 如果当前元素为null但默认元素不为null，创建新实例
+                                var newElement = CreateDefaultValue(defaultElement.GetType());
+                                if (newElement != null)
+                                {
+                                    currentList[i] = newElement;
+                                    arraysFixed++;
+                                    FixObjectRecursively(newElement, defaultElement, ref fieldsFixed, ref arraysFixed);
+                                }
+                            }
+                        }
+                        }
+                    }
+                    // 处理复杂类型（类）的递归修正
+                    else if (currentValue.GetType().IsClass && currentValue.GetType() != typeof(string) && 
+                             defaultValue.GetType().IsClass && defaultValue.GetType() != typeof(string))
+                    {
+                        // 递归修正复杂对象
+                        FixObjectRecursively(currentValue, defaultValue, ref fieldsFixed, ref arraysFixed);
+                    }
+                }
+            }
+        }
+
+        private object? CreateDefaultValue(Type type)
+        {
+            if (type == typeof(string))
+                return string.Empty;
+            else if (type.IsValueType)
+                return Activator.CreateInstance(type);
+            else if (type.IsClass)
+                return Activator.CreateInstance(type);
+            
+            return null;
+        }
+
+        private object? SafeGetArrayElement(System.Collections.IList array, int index)
+        {
+            if (array == null || index < 0 || index >= array.Count)
+                return null;
+            
+            try
+            {
+                var value = array[index];
+                // 如果是FixedLengthArray，对于超出实际元素数量的索引，会返回默认值而不是null
+                // 我们需要确保正确处理这种情况
+                return value;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
+            catch (IndexOutOfRangeException)
+            {
+                return null;
+            }
+        }
+
+        private void InitializeFixedLengthArrays(object instance)
+        {
+            if (instance == null) return;
+            
+            var properties = instance.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.CanRead && p.CanWrite);
+            
+            foreach (var prop in properties)
+            {
+                if (prop.PropertyType.IsGenericType && 
+                    prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
+                {
+                    var arrayValue = prop.GetValue(instance) as System.Collections.IList;
+                    if (arrayValue != null)
+                    {
+                        var elementType = prop.PropertyType.GetGenericArguments()[0];
+                        
+                        // 初始化FixedLengthArray中的每个元素
+                        for (int i = 0; i < arrayValue.Count; i++)
+                        {
+                            var currentElement = arrayValue[i];
+                            if (currentElement == null)
+                            {
+                                // 如果元素为null，设置为适当的默认值
+                                if (elementType == typeof(string))
+                                {
+                                    arrayValue[i] = string.Empty;
+                                }
+                                else if (elementType.IsValueType)
+                                {
+                                    arrayValue[i] = Activator.CreateInstance(elementType);
+                                }
+                                else if (elementType.IsClass)
+                                {
+                                    var newInstance = Activator.CreateInstance(elementType);
+                                    arrayValue[i] = newInstance;
+                                    // 递归初始化嵌套的FixedLengthArray
+                                    if (newInstance != null)
+                                        InitializeFixedLengthArrays(newInstance);
+                                }
+                            }
+                            else if (currentElement.GetType().IsClass && currentElement.GetType() != typeof(string))
+                            {
+                                // 递归初始化复杂对象
+                                if (currentElement != null)
+                                    InitializeFixedLengthArrays(currentElement);
+                            }
+                        }
+                    }
+                }
+                else if (prop.PropertyType.IsClass && prop.PropertyType != typeof(string))
+                {
+                    var value = prop.GetValue(instance);
+                    if (value != null)
+                    {
+                        // 递归初始化复杂属性
+                        if (value != null)
+                            InitializeFixedLengthArrays(value);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 解析CSV内容为记录字典列表
+        /// </summary>
+        private List<Dictionary<string, string>> ParseCsvFromContent(string content)
+        {
+            var records = new List<Dictionary<string, string>>();
+            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2) return records;
+
+            var headers = ParseCsvLine(lines[0]);
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var values = ParseCsvLine(lines[i]);
+                var record = new Dictionary<string, string>();
+                for (int j = 0; j < headers.Count && j < values.Count; j++)
+                {
+                    record[headers[j]] = values[j];
+                }
+                records.Add(record);
+            }
+
+            return records;
+        }
+
+        /// <summary>
+        /// 解析CSV单行
+        /// </summary>
+        private List<string> ParseCsvLine(string line)
+        {
+            var fields = new List<string>();
+            var currentField = new StringBuilder();
+            bool inQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (inQuotes)
+                {
+                    if (c == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            currentField.Append('"');
+                            i++;
+                        }
+                        else
+                        {
+                            inQuotes = false;
+                        }
+                    }
+                    else
+                    {
+                        currentField.Append(c);
+                    }
+                }
+                else
+                {
+                    if (c == '"')
+                    {
+                        inQuotes = true;
+                    }
+                    else if (c == ',')
+                    {
+                        fields.Add(currentField.ToString());
+                        currentField.Clear();
+                    }
+                    else
+                    {
+                        currentField.Append(c);
+                    }
+                }
+            }
+            fields.Add(currentField.ToString());
+            return fields;
+        }
+
+        /// <summary>
+        /// 从CSV记录更新行数据
+        /// </summary>
+        private void UpdateRowFromCsvRecord(BaseDataRow row, Dictionary<string, string> record)
+        {
+            var csvService = new CsvService();
+            
+            // 创建一个临时的表格，包含当前行
+            var tempTable = new GameDataTable("TempTable", row.GetType());
+            tempTable.Rows.Add(row);
+            
+            // 使用CSV服务的UpdateTableFromCsv方法
+            // 由于我们只有一个行，并且ID匹配，这个方法会更新该行
+            var tempRecords = new List<Dictionary<string, string>> { record };
+            
+            // 模拟UpdateTableFromCsv的逻辑
+            foreach (var rec in tempRecords)
+            {
+                string? idString = null;
+                if (rec.TryGetValue("ID", out idString) && int.TryParse(idString, out int id))
+                {
+                    if (row.ID == id)
+                    {
+                        // 使用反射调用CsvService的私有方法
+                        var unflattenMethod = typeof(CsvService).GetMethod("UnflattenObject", 
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        
+                        if (unflattenMethod != null)
+                        {
+                            unflattenMethod.Invoke(csvService, new object[] { row, rec });
+                        }
+                    }
+                }
             }
         }
     }

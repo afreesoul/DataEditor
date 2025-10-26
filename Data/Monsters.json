@@ -17,48 +17,90 @@
       }
     },
     "Tags": [
-      "Beast"
+      "Beast",
+      "",
+      ""
     ],
     "Auras": [
       {
         "Name": "test",
         "Damage": 5645,
-        "Duration": 10
+        "Duration": 10,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15
+        "Duration": 15,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       }
     ]
   },
@@ -80,48 +122,90 @@
       }
     },
     "Tags": [
-      "Beast"
+      "Beast",
+      "",
+      ""
     ],
     "Auras": [
       {
         "Name": "Fire",
         "Damage": 5,
-        "Duration": 10
+        "Duration": 10,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15
+        "Duration": 15,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       }
     ]
   },
@@ -143,48 +227,90 @@
       }
     },
     "Tags": [
-      "Beast"
+      "Beast",
+      "",
+      ""
     ],
     "Auras": [
       {
         "Name": "Fire",
         "Damage": 5,
-        "Duration": 10
+        "Duration": 10,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15
+        "Duration": 15,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       },
       {
         "Name": "",
         "Damage": 0,
-        "Duration": 0
+        "Duration": 0,
+        "Tags": [
+          null,
+          null,
+          null
+        ]
       }
     ]
   }

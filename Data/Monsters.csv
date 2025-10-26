@@ -1,4 +1,4 @@
-﻿ID,Name,State,HP,Attack,Experience,BaseStats.Strength,BaseStats.Dexterity,BaseStats.Intelligence,BaseStats.ElementalResistances.Fire,BaseStats.ElementalResistances.Ice,BaseStats.ElementalResistances.Lightning,Tags.0,Tags.1,Auras.0.Name,Auras.0.Damage,Auras.0.Duration,Auras.1.Name,Auras.1.Damage,Auras.1.Duration
-1,Slime,Active,50,5,10,5,5,1,10,-5,0,Beast,Slime,test,5645,10,Ice,2,15
-2,Goblin,Active,100,15,25,10,8,2,20,0,5,Beast,Slime,Fire,5,10,Ice,2,15
-3,Dragon,Active,5000,120,1000,100,60,80,100,75,50,Beast,Slime,Fire,5,10,Ice,2,15
+﻿ID,Name,State,HP,Attack,Experience,BaseStats.Strength,BaseStats.Dexterity,BaseStats.Intelligence,BaseStats.ElementalResistances.Fire,BaseStats.ElementalResistances.Ice,BaseStats.ElementalResistances.Lightning,Tags.0,Tags.1,Tags.2,Auras.0.Name,Auras.0.Damage,Auras.0.Duration,Auras.1.Name,Auras.1.Damage,Auras.1.Duration,Auras.2.Name,Auras.2.Damage,Auras.2.Duration,Auras.3.Name,Auras.3.Damage,Auras.3.Duration,Auras.4.Name,Auras.4.Damage,Auras.4.Duration,Auras.5.Name,Auras.5.Damage,Auras.5.Duration,Auras.6.Name,Auras.6.Damage,Auras.6.Duration,Auras.7.Name,Auras.7.Damage,Auras.7.Duration
+1,Slime,Active,50,5,10,5,5,1,10,-5,0,Beast,,,test,5645,10,Ice,2,15,,0,0,,0,0,,0,0,,0,0,,0,0,,0,0
+2,Goblin,Active,100,15,25,10,8,2,20,0,5,Beast,,,Fire,5,10,Ice,2,15,,0,0,,0,0,,0,0,,0,0,,0,0,,0,0
+3,Dragon,Active,5000,120,1000,100,60,80,100,75,50,Beast,,,Fire,5,10,Ice,2,15,,0,0,,0,0,,0,0,,0,0,,0,0,,0,0

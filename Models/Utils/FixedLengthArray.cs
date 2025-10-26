@@ -48,9 +48,15 @@ namespace GameDataEditor.Models.Utils
                 if (index < 0 || index >= _items.Capacity)
                     throw new ArgumentOutOfRangeException(nameof(index));
                 
-                // 如果索引超出当前列表大小但小于容量，返回默认值
+                // 如果索引超出当前列表大小但小于容量，返回类型特定的默认值
                 if (index >= _items.Count)
-                    return default(T)!;
+                {
+                    // 对于字符串类型，返回空字符串而不是null
+                    if (typeof(T) == typeof(string))
+                        return (T)(object)string.Empty;
+                    else
+                        return default(T)!;
+                }
                     
                 return _items[index];
             }
