@@ -116,6 +116,34 @@ namespace GameDataEditor
                     contextMenu.Items.Add(new Separator());
                 }
                 
+                // 为所有项目添加"移动到下方"选项（调整顺序）
+                var moveBelowMenuItem = new MenuItem { Header = "移动到下方" };
+                
+                // 获取当前项目的同级项目列表（排除自身）
+                var siblings = GetSiblings(dataItem, viewModel).Where(s => s != dataItem).ToList();
+                
+                if (siblings.Count > 0)
+                {
+                    // 添加同级项目作为子菜单项
+                    foreach (var sibling in siblings)
+                    {
+                        var siblingMenuItem = new MenuItem { Header = sibling.DisplayName };
+                        siblingMenuItem.Click += (s, args) => 
+                        {
+                            MoveItemBelow(dataItem, sibling, viewModel);
+                        };
+                        moveBelowMenuItem.Items.Add(siblingMenuItem);
+                    }
+                }
+                else
+                {
+                    // 如果没有同级项目，禁用菜单项
+                    moveBelowMenuItem.IsEnabled = false;
+                }
+                
+                contextMenu.Items.Add(moveBelowMenuItem);
+                contextMenu.Items.Add(new Separator());
+                
                 // 添加注释菜单项
                 var commentMenuItem = new MenuItem { Header = "注释" };
                 commentMenuItem.Click += (s, args) => 
@@ -305,6 +333,111 @@ namespace GameDataEditor
             
             // 刷新TreeView显示
             viewModel.ReloadDirectoryStructure();
+        }
+
+        private List<IDataItem> GetSiblings(IDataItem item, MainViewModel viewModel)
+        {
+            var siblings = new List<IDataItem>();
+            
+            if (item.Parent != null)
+            {
+                // 如果项目有父级，获取父级的所有子项
+                if (item.Parent is DataDirectory parentDirectory)
+                {
+                    siblings.AddRange(parentDirectory.Children);
+                }
+            }
+            else
+            {
+                // 如果项目没有父级，获取根层级的所有项目
+                siblings.AddRange(viewModel.DataItems);
+            }
+            
+            return siblings;
+        }
+
+        private void MoveItemBelow(IDataItem sourceItem, IDataItem targetItem, MainViewModel viewModel)
+        {
+            if (sourceItem == null || targetItem == null || viewModel == null) return;
+            
+            // 获取源项目和目标项目的同级列表
+            var siblings = GetSiblings(sourceItem, viewModel);
+            
+            // 检查源项目和目标项目是否在同一层级
+            if (!siblings.Contains(targetItem))
+            {
+                MessageBox.Show("无法移动项目到不同层级。", "移动失败", 
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            
+            // 获取源项目和目标项目的索引
+            int sourceIndex = siblings.IndexOf(sourceItem);
+            int targetIndex = siblings.IndexOf(targetItem);
+            
+            if (sourceIndex == -1 || targetIndex == -1)
+            {
+                MessageBox.Show("无法找到项目位置。", "移动失败", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            
+            // 如果源项目已经在目标项目下方，无需移动
+            if (sourceIndex > targetIndex)
+            {
+                MessageBox.Show($"'{sourceItem.DisplayName}' 已经在 '{targetItem.DisplayName}' 下方，无需移动。", 
+                    "移动提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            
+            // 执行移动操作
+            try
+            {
+                if (sourceItem.Parent != null)
+                {
+                    // 在目录内移动
+                    if (sourceItem.Parent is DataDirectory parentDirectory)
+                    {
+                        // 先移除源项目
+                        parentDirectory.RemoveChild(sourceItem);
+                        
+                        // 重新计算目标索引（因为源项目已经被移除）
+                        int newTargetIndex = parentDirectory.Children.IndexOf(targetItem);
+                        
+                        // 计算新的插入位置（在目标项目之后）
+                        int newIndex = newTargetIndex + 1;
+                        if (newIndex > parentDirectory.Children.Count) newIndex = parentDirectory.Children.Count;
+                        
+                        parentDirectory.InsertChild(newIndex, sourceItem);
+                    }
+                }
+                else
+                {
+                    // 在根层级移动
+                    viewModel.DataItems.Remove(sourceItem);
+                    
+                    // 重新计算目标索引（因为源项目已经被移除）
+                    int newTargetIndex = viewModel.DataItems.IndexOf(targetItem);
+                    
+                    // 计算新的插入位置
+                    int newIndex = newTargetIndex + 1;
+                    if (newIndex > viewModel.DataItems.Count) newIndex = viewModel.DataItems.Count;
+                    
+                    viewModel.DataItems.Insert(newIndex, sourceItem);
+                }
+                
+                // 保存目录结构
+                viewModel.SaveDirectoryStructure();
+                viewModel.Log($"将 '{sourceItem.DisplayName}' 移动到 '{targetItem.DisplayName}' 下方");
+                
+                // 刷新TreeView显示
+                viewModel.ReloadDirectoryStructure();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"移动操作失败：{ex.Message}", "移动错误", 
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }

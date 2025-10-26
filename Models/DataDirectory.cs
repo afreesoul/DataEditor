@@ -76,6 +76,19 @@ namespace GameDataEditor.Models
             Children.Remove(item);
         }
 
+        public void InsertChild(int index, IDataItem item)
+        {
+            item.Parent = this;
+            if (index >= 0 && index <= Children.Count)
+            {
+                Children.Insert(index, item);
+            }
+            else
+            {
+                Children.Add(item);
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
