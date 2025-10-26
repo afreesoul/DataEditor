@@ -91,6 +91,31 @@ namespace GameDataEditor
                 // 清除现有菜单项
                 contextMenu.Items.Clear();
                 
+                // 如果是目录，添加重命名和删除菜单项
+                if (dataItem.ItemType == DataItemType.Directory)
+                {
+                    var renameMenuItem = new MenuItem { Header = "重命名" };
+                    renameMenuItem.Click += (s, args) => 
+                    {
+                        if (dataItem is DataDirectory directory)
+                        {
+                            RenameDirectory(directory, viewModel);
+                        }
+                    };
+                    contextMenu.Items.Add(renameMenuItem);
+                    
+                    var deleteMenuItem = new MenuItem { Header = "删除目录" };
+                    deleteMenuItem.Click += (s, args) => 
+                    {
+                        if (dataItem is DataDirectory directory)
+                        {
+                            DeleteDirectory(directory, viewModel);
+                        }
+                    };
+                    contextMenu.Items.Add(deleteMenuItem);
+                    contextMenu.Items.Add(new Separator());
+                }
+                
                 // 添加注释菜单项
                 var commentMenuItem = new MenuItem { Header = "注释" };
                 commentMenuItem.Click += (s, args) => 
@@ -197,6 +222,89 @@ namespace GameDataEditor
                 viewModel.SaveDirectoryStructure();
                 viewModel.Log($"将表 '{tableWrapper.Name}' 从目录 '{parentDirectory.Name}' 移动到外层");
             }
+        }
+
+        private void RenameDirectory(DataDirectory directory, MainViewModel viewModel)
+        {
+            if (directory == null || viewModel == null) return;
+            
+            // 显示输入对话框获取新名称
+            var dialog = new DirectoryDialogWindow("重命名目录", directory.Name);
+            dialog.Owner = Application.Current.Windows.OfType<Window>().SingleOrDefault(x => x.IsActive);
+            
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.DirectoryName))
+            {
+                string newName = dialog.DirectoryName.Trim();
+                
+                // 检查名称是否重复（排除自身）
+                bool nameExists = viewModel.DataItems
+                    .OfType<DataDirectory>()
+                    .Any(d => d != directory && d.Name.Equals(newName, StringComparison.OrdinalIgnoreCase));
+                
+                if (nameExists)
+                {
+                    MessageBox.Show($"目录名称 '{newName}' 已存在，请使用其他名称。", "名称重复", 
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                
+                string oldName = directory.Name;
+                directory.Name = newName;
+                
+                // 保存目录结构
+                viewModel.SaveDirectoryStructure();
+                viewModel.Log($"将目录 '{oldName}' 重命名为 '{newName}'");
+                
+                // 刷新TreeView显示 - 通过重新加载目录结构实现
+                viewModel.ReloadDirectoryStructure();
+            }
+        }
+
+        private void DeleteDirectory(DataDirectory directory, MainViewModel viewModel)
+        {
+            if (directory == null || viewModel == null) return;
+            
+            // 确认删除操作
+            string message = "确定要删除目录 '" + directory.Name + "'?" 
+                + (directory.Children.Count > 0 ? $"\n\n该目录包含 {directory.Children.Count} 个表，删除后这些表将移动到外层。" : "");
+                
+            var result = MessageBox.Show(message, "确认删除", 
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+            
+            if (result != MessageBoxResult.Yes) return;
+            
+            // 如果目录包含表，将它们移动到外层
+            if (directory.Children.Count > 0)
+            {
+                // 复制子项列表以避免在循环时修改集合
+                var childrenToMove = directory.Children.ToList();
+                
+                foreach (var child in childrenToMove)
+                {
+                    if (child is DataTableWrapper tableWrapper)
+                    {
+                        // 从目录中移除表
+                        directory.RemoveChild(tableWrapper);
+                        
+                        // 添加到根层级
+                        viewModel.DataItems.Add(tableWrapper);
+                        tableWrapper.Parent = null;
+                        
+                        viewModel.Log($"将表 '{tableWrapper.Name}' 从目录 '{directory.Name}' 移动到外层");
+                    }
+                }
+            }
+            
+            // 从数据项中移除目录
+            viewModel.DataItems.Remove(directory);
+            
+            // 保存目录结构
+            viewModel.SaveDirectoryStructure();
+            viewModel.Log($"删除目录 '{directory.Name}'" + 
+                (directory.Children.Count > 0 ? $"，并将 {directory.Children.Count} 个表移动到外层" : ""));
+            
+            // 刷新TreeView显示
+            viewModel.ReloadDirectoryStructure();
         }
     }
 }

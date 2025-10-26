@@ -14,6 +14,24 @@ namespace GameDataEditor
             UpdateOkButtonState();
         }
 
+        public DirectoryDialogWindow(string title, string initialName = "")
+        {
+            InitializeComponent();
+            
+            // 设置窗口标题
+            Title = title;
+            
+            // 设置初始名称
+            if (!string.IsNullOrEmpty(initialName))
+            {
+                DirectoryTextBox.Text = initialName;
+                DirectoryName = initialName;
+            }
+            
+            // 设置初始按钮状态
+            UpdateOkButtonState();
+        }
+
         private void DirectoryTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             DirectoryName = DirectoryTextBox.Text?.Trim();

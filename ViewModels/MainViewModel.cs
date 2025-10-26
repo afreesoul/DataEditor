@@ -296,6 +296,21 @@ namespace GameDataEditor.ViewModels
             }
         }
 
+        public void ReloadDirectoryStructure()
+        {
+            if (_directoryService != null)
+            {
+                // 重新加载目录结构以刷新UI显示
+                var newDataItems = new ObservableCollection<IDataItem>(_directoryService.LoadStructure(GameTables));
+                DataItems.Clear();
+                foreach (var item in newDataItems)
+                {
+                    DataItems.Add(item);
+                }
+                OnPropertyChanged(nameof(DataItems));
+            }
+        }
+
         public void MoveTable(MoveTableParameters parameters)
         {
             if (parameters?.Table == null) return;
