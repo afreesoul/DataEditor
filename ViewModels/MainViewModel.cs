@@ -4,6 +4,7 @@ using GameDataEditor.Models.DataEntries;
 using GameDataEditor.Models.Settings;
 using GameDataEditor.Models.Utils;
 using GameDataEditor.Utils;
+using GameDataEditor.Services;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,7 @@ namespace GameDataEditor.ViewModels
         private readonly SettingsService _settingsService;
         private AppSettings _appSettings;
         private readonly Dictionary<string, int> _lastSelectedRowIds = new Dictionary<string, int>();
+        private TableCommentService? _commentService;
 
         // Logging
         private string _logOutput = string.Empty;
@@ -95,6 +97,7 @@ namespace GameDataEditor.ViewModels
         public ICommand ExportCsvCommand { get; }
         public ICommand ImportCsvCommand { get; }
         public ICommand FixFieldsCommand { get; }
+        public ICommand AddTableCommentCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
         public bool IsTableSelected => SelectedTable != null;
@@ -179,6 +182,7 @@ namespace GameDataEditor.ViewModels
             ExportCsvCommand = new RelayCommand(ExportAllToCsv);
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
             FixFieldsCommand = new RelayCommand(FixFields);
+            AddTableCommentCommand = new RelayCommand(AddTableComment);
 
             LoadFromFolder();
             //LoadFromCsvFolder();
@@ -202,6 +206,46 @@ namespace GameDataEditor.ViewModels
             else
             {
                 Log("Settings changes cancelled.");
+            }
+        }
+
+        private void AddTableComment()
+        {
+            if (SelectedTable == null)
+            {
+                MessageBox.Show("请先选择一个表", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var commentDialog = new CommentDialogWindow(SelectedTable.Comment);
+            commentDialog.Owner = Application.Current.Windows.OfType<Window>().SingleOrDefault(x => x.IsActive);
+            
+            if (commentDialog.ShowDialog() == true)
+            {
+                string newComment = commentDialog.CommentText?.Trim() ?? string.Empty;
+                
+                // 初始化注释服务（如果尚未初始化）
+                if (_commentService == null && !string.IsNullOrEmpty(_appSettings.DataFolderPath))
+                {
+                    _commentService = new TableCommentService(_appSettings.DataFolderPath);
+                }
+
+                if (_commentService != null)
+                {
+                    // 保存注释到文件
+                    _commentService.SetComment(SelectedTable.Name, newComment);
+                    
+                    // 更新表格的注释属性
+                    SelectedTable.Comment = newComment;
+                    
+                    Log($"为表 '{SelectedTable.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释: {newComment}");
+                }
+                else
+                {
+                    // 如果无法初始化注释服务，至少更新UI显示
+                    SelectedTable.Comment = newComment;
+                    Log($"为表 '{SelectedTable.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释（本地显示）: {newComment}");
+                }
             }
         }
 
@@ -533,9 +577,21 @@ namespace GameDataEditor.ViewModels
                 NumberHandling = JsonNumberHandling.AllowReadingFromString
             };
 
+            // 初始化注释服务
+            if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+            {
+                _commentService = new TableCommentService(directory);
+            }
+
             foreach (var kvp in TableTypeMapping)
             {
                 var table = new GameDataTable(kvp.Key, kvp.Value);
+                
+                // 加载注释
+                if (_commentService != null)
+                {
+                    _commentService.LoadCommentsIntoTable(table);
+                }
                 
                 // Only try to load data if directory exists and is valid
                 if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))

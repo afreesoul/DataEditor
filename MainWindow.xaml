@@ -42,8 +42,24 @@
                         <TextBlock DockPanel.Dock="Top" Text="Data Tables" FontWeight="Bold" Margin="0,0,0,5"/>
                         <ListBox Name="TablesListBox" 
                                  ItemsSource="{Binding GameTables}" 
-                                 DisplayMemberPath="Name"
-                                 SelectedItem="{Binding SelectedTable, Mode=TwoWay}"/>
+                                 SelectedItem="{Binding SelectedTable, Mode=TwoWay}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}">
+                                        <TextBlock.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="注释" Command="{Binding DataContext.AddTableCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            </ContextMenu>
+                                        </TextBlock.ContextMenu>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="注释" Command="{Binding AddTableCommentCommand}"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
                     </DockPanel>
     
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
