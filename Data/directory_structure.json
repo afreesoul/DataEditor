@@ -14,18 +14,18 @@
       ]
     },
     {
-      "Name": "Monsters",
-      "IsDirectory": false,
-      "IsExpanded": false,
-      "Children": []
-    },
-    {
       "Name": "\u7269\u54C1",
       "IsDirectory": true,
-      "IsExpanded": false,
+      "IsExpanded": true,
       "Children": [
         {
           "Name": "Items",
+          "IsDirectory": false,
+          "IsExpanded": false,
+          "Children": []
+        },
+        {
+          "Name": "Monsters",
           "IsDirectory": false,
           "IsExpanded": false,
           "Children": []

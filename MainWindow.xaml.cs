@@ -382,10 +382,12 @@ namespace GameDataEditor
                 return;
             }
             
-            // 如果源项目已经在目标项目下方，无需移动
-            if (sourceIndex > targetIndex)
+            // 如果源项目已经在目标项目之后，无需移动（真正意义上的"下方"）
+            // 注意：这里要区分"紧挨着下方"和"在序列中更靠后的位置"
+            // 我们只应该阻止紧挨着下方的情况，其他情况应该允许移动
+            if (sourceIndex == targetIndex + 1)
             {
-                MessageBox.Show($"'{sourceItem.DisplayName}' 已经在 '{targetItem.DisplayName}' 下方，无需移动。", 
+                MessageBox.Show($"'{sourceItem.DisplayName}' 已经在 '{targetItem.DisplayName}' 紧挨着的下方，无需移动。", 
                     "移动提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
