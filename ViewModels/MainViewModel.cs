@@ -28,6 +28,7 @@ namespace GameDataEditor.ViewModels
         private AppSettings _appSettings;
         private readonly Dictionary<string, int> _lastSelectedRowIds = new Dictionary<string, int>();
         private TableCommentService? _commentService;
+        private DirectoryStructureService? _directoryService;
 
         // Logging
         private string _logOutput = string.Empty;
@@ -84,6 +85,13 @@ namespace GameDataEditor.ViewModels
             set { _gameTables = value; OnPropertyChanged(nameof(GameTables)); }
         }
 
+        private ObservableCollection<IDataItem> _dataItems = new();
+        public ObservableCollection<IDataItem> DataItems
+        {
+            get => _dataItems;
+            set { _dataItems = value; OnPropertyChanged(nameof(DataItems)); }
+        }
+
         public ObservableCollection<FieldViewModel> SelectedRowFields { get; } = new();
 
         public ICommand SaveCommand { get; }
@@ -98,6 +106,8 @@ namespace GameDataEditor.ViewModels
         public ICommand ImportCsvCommand { get; }
         public ICommand FixFieldsCommand { get; }
         public ICommand AddTableCommentCommand { get; }
+        public ICommand CreateDirectoryCommand { get; }
+        public ICommand MoveTableCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
         public bool IsTableSelected => SelectedTable != null;
@@ -182,7 +192,9 @@ namespace GameDataEditor.ViewModels
             ExportCsvCommand = new RelayCommand(ExportAllToCsv);
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
             FixFieldsCommand = new RelayCommand(FixFields);
-            AddTableCommentCommand = new RelayCommand(AddTableComment);
+            AddTableCommentCommand = new RelayCommand(() => AddTableComment());
+            CreateDirectoryCommand = new RelayCommand(CreateDirectory);
+            MoveTableCommand = new RelayCommand<MoveTableParameters>(MoveTable);
 
             LoadFromFolder();
             //LoadFromCsvFolder();
@@ -209,15 +221,28 @@ namespace GameDataEditor.ViewModels
             }
         }
 
-        private void AddTableComment()
+        public void AddTableComment(object? parameter = null)
         {
-            if (SelectedTable == null)
+            GameDataTable? tableToComment = null;
+            
+            // 如果提供了参数，从参数获取表
+            if (parameter is IDataItem dataItem && dataItem.ItemType == DataItemType.Table && dataItem is DataTableWrapper tableWrapper)
+            {
+                tableToComment = tableWrapper.Table;
+            }
+            // 否则使用当前选中的表
+            else if (SelectedTable != null)
+            {
+                tableToComment = SelectedTable;
+            }
+            
+            if (tableToComment == null)
             {
                 MessageBox.Show("请先选择一个表", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var commentDialog = new CommentDialogWindow(SelectedTable.Comment);
+            var commentDialog = new CommentDialogWindow(tableToComment.Comment);
             commentDialog.Owner = Application.Current.Windows.OfType<Window>().SingleOrDefault(x => x.IsActive);
             
             if (commentDialog.ShowDialog() == true)
@@ -233,19 +258,85 @@ namespace GameDataEditor.ViewModels
                 if (_commentService != null)
                 {
                     // 保存注释到文件
-                    _commentService.SetComment(SelectedTable.Name, newComment);
+                    _commentService.SetComment(tableToComment.Name, newComment);
                     
                     // 更新表格的注释属性
-                    SelectedTable.Comment = newComment;
+                    tableToComment.Comment = newComment;
                     
-                    Log($"为表 '{SelectedTable.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释: {newComment}");
+                    Log($"为表 '{tableToComment.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释: {newComment}");
                 }
                 else
                 {
                     // 如果无法初始化注释服务，至少更新UI显示
-                    SelectedTable.Comment = newComment;
-                    Log($"为表 '{SelectedTable.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释（本地显示）: {newComment}");
+                    tableToComment.Comment = newComment;
+                    Log($"为表 '{tableToComment.Name}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释（本地显示）: {newComment}");
                 }
+            }
+        }
+
+        public void CreateDirectory()
+        {
+            var dialog = new DirectoryDialogWindow();
+            dialog.Owner = Application.Current.Windows.OfType<Window>().SingleOrDefault(x => x.IsActive);
+            
+            if (dialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(dialog.DirectoryName))
+            {
+                var newDirectory = new DataDirectory(dialog.DirectoryName.Trim());
+                DataItems.Add(newDirectory);
+                SaveDirectoryStructure();
+                Log($"创建目录: {newDirectory.Name}");
+            }
+        }
+
+        public void SaveDirectoryStructure()
+        {
+            if (_directoryService != null)
+            {
+                _directoryService.SaveStructure(DataItems);
+            }
+        }
+
+        public void MoveTable(MoveTableParameters parameters)
+        {
+            if (parameters?.Table == null) return;
+
+            var tableWrapper = parameters.Table;
+            
+            if (parameters.MoveToOuter)
+            {
+                // 移动到外层
+                if (tableWrapper.Parent is DataDirectory parentDirectory)
+                {
+                    parentDirectory.RemoveChild(tableWrapper);
+                    DataItems.Add(tableWrapper);
+                    tableWrapper.Parent = null;
+                    
+                    SaveDirectoryStructure();
+                    Log($"将表 '{tableWrapper.Name}' 从目录 '{parentDirectory.Name}' 移动到外层");
+                }
+            }
+            else if (parameters.TargetDirectory != null)
+            {
+                // 移动到指定目录
+                if (tableWrapper.Parent != null)
+                {
+                    // 从原位置移除
+                    if (tableWrapper.Parent is DataDirectory oldParent)
+                    {
+                        oldParent.RemoveChild(tableWrapper);
+                    }
+                    else
+                    {
+                        DataItems.Remove(tableWrapper);
+                    }
+                }
+
+                // 添加到目标目录
+                parameters.TargetDirectory.AddChild(tableWrapper);
+                parameters.TargetDirectory.IsExpanded = true;
+                
+                SaveDirectoryStructure();
+                Log($"将表 '{tableWrapper.Name}' 移动到目录 '{parameters.TargetDirectory.Name}'");
             }
         }
 
@@ -577,10 +668,11 @@ namespace GameDataEditor.ViewModels
                 NumberHandling = JsonNumberHandling.AllowReadingFromString
             };
 
-            // 初始化注释服务
+            // 初始化注释服务和目录服务
             if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
             {
                 _commentService = new TableCommentService(directory);
+                _directoryService = new DirectoryStructureService(directory);
             }
 
             foreach (var kvp in TableTypeMapping)
@@ -634,6 +726,21 @@ namespace GameDataEditor.ViewModels
             }
 
             GameTables = loadedTables;
+            
+            // 加载目录结构
+            if (_directoryService != null)
+            {
+                DataItems = new ObservableCollection<IDataItem>(_directoryService.LoadStructure(GameTables));
+            }
+            
+            // 如果没有保存的目录结构，将所有表添加到DataItems中
+            if (DataItems.Count == 0)
+            {
+                foreach (var table in GameTables)
+                {
+                    DataItems.Add(new DataTableWrapper(table));
+                }
+            }
             
             // 确保Monster数据的格式正确
             DataConverter.FixAllMonsterData(GameTables);

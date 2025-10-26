@@ -1,0 +1,35 @@
+{
+  "Items": [
+    {
+      "Name": "\u5730\u56FE",
+      "IsDirectory": true,
+      "IsExpanded": true,
+      "Children": [
+        {
+          "Name": "Monsters",
+          "IsDirectory": false,
+          "IsExpanded": false,
+          "Children": []
+        }
+      ]
+    },
+    {
+      "Name": "test dir",
+      "IsDirectory": true,
+      "IsExpanded": true,
+      "Children": []
+    },
+    {
+      "Name": "Items",
+      "IsDirectory": false,
+      "IsExpanded": false,
+      "Children": []
+    },
+    {
+      "Name": "Quests",
+      "IsDirectory": false,
+      "IsExpanded": false,
+      "Children": []
+    }
+  ]
+}

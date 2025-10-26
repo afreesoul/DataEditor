@@ -40,26 +40,39 @@
                     <!-- Column 1: Data Tables -->
                     <DockPanel Grid.Column="0" Margin="5">
                         <TextBlock DockPanel.Dock="Top" Text="Data Tables" FontWeight="Bold" Margin="0,0,0,5"/>
-                        <ListBox Name="TablesListBox" 
-                                 ItemsSource="{Binding GameTables}" 
-                                 SelectedItem="{Binding SelectedTable, Mode=TwoWay}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
+                        <TreeView Name="TablesTreeView" 
+                                  ItemsSource="{Binding DataItems}" 
+                                  SelectedItemChanged="TablesTreeView_SelectedItemChanged">
+                            <TreeView.ItemTemplate>
+                                <HierarchicalDataTemplate ItemsSource="{Binding Children}">
                                     <TextBlock Text="{Binding DisplayName}">
                                         <TextBlock.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="注释" Command="{Binding DataContext.AddTableCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <ContextMenu x:Name="ItemContextMenu" Opened="ItemContextMenu_Opened">
+                                                <MenuItem Header="注释" 
+                                                          Command="{Binding DataContext.AddTableCommentCommand, RelativeSource={RelativeSource AncestorType=Window}}" 
+                                                          CommandParameter="{Binding}"/>
+                                                <Separator/>
+                                                <MenuItem Header="创建目录" 
+                                                          Command="{Binding DataContext.CreateDirectoryCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                             </ContextMenu>
                                         </TextBlock.ContextMenu>
                                     </TextBlock>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                            <ListBox.ContextMenu>
+                                </HierarchicalDataTemplate>
+                            </TreeView.ItemTemplate>
+                            <TreeView.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="创建目录" Command="{Binding CreateDirectoryCommand}"/>
+                                    <Separator/>
                                     <MenuItem Header="注释" Command="{Binding AddTableCommentCommand}"/>
                                 </ContextMenu>
-                            </ListBox.ContextMenu>
-                        </ListBox>
+                            </TreeView.ContextMenu>
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="{x:Type TreeViewItem}">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                    <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_MouseDoubleClick"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                        </TreeView>
                     </DockPanel>
     
                     <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center" VerticalAlignment="Stretch" />
