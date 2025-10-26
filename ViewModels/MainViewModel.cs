@@ -2,6 +2,7 @@ using GameDataEditor.Commands;
 using GameDataEditor.Models;
 using GameDataEditor.Models.DataEntries;
 using GameDataEditor.Models.Settings;
+using GameDataEditor.Models.Utils;
 using GameDataEditor.Utils;
 using Microsoft.Win32;
 using System;
@@ -430,7 +431,7 @@ namespace GameDataEditor.ViewModels
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
-                Converters = { new JsonStringEnumConverter(), new ForeignKeyConverterFactory() },
+                Converters = { new JsonStringEnumConverter(), new ForeignKeyConverterFactory(), new FixedLengthArrayConverterFactory() },
                 NumberHandling = JsonNumberHandling.AllowReadingFromString
             };
 
@@ -479,6 +480,10 @@ namespace GameDataEditor.ViewModels
             }
 
             GameTables = loadedTables;
+            
+            // 确保Monster数据的格式正确
+            DataConverter.FixAllMonsterData(GameTables);
+            
             SelectedTable = null;
             SelectedRow = null;
             
@@ -693,10 +698,11 @@ namespace GameDataEditor.ViewModels
             var defaultInstance = Activator.CreateInstance(rowType) as BaseDataRow;
             if (defaultInstance == null) return;
             
-            // Get all properties that are List<T> types
+            // Get all properties that are List<T> or FixedLengthArray<T> types
             var properties = rowType.GetProperties()
                 .Where(p => p.PropertyType.IsGenericType && 
-                           p.PropertyType.GetGenericTypeDefinition() == typeof(List<>));
+                           (p.PropertyType.GetGenericTypeDefinition() == typeof(List<>) ||
+                            p.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>)));
             
             foreach (var prop in properties)
             {
@@ -708,12 +714,12 @@ namespace GameDataEditor.ViewModels
                 var defaultValue = prop.GetValue(defaultInstance);
                 if (defaultValue == null) continue;
                 
-                // Get the Count property from both lists
+                // Get the Count property from both lists/arrays
                 var currentCount = (int)currentValue.GetType().GetProperty("Count")!.GetValue(currentValue)!;
                 var defaultCount = (int)defaultValue.GetType().GetProperty("Count")!.GetValue(defaultValue)!;
                 
                 // If the current count is less than the default count, we need to fix it
-                if (currentCount < defaultCount)
+                if (currentCount < defaultCount && prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
                 {
                     var listType = prop.PropertyType.GetGenericArguments()[0];
                     
@@ -737,6 +743,11 @@ namespace GameDataEditor.ViewModels
                             list.Add(newItem);
                         }
                     }
+                }
+                // For FixedLengthArray, we just log the mismatch but don't change it
+                else if (currentCount != defaultCount && prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
+                {
+                    Log($"Warning: FixedLengthArray '{prop.Name}' has mismatched length (current: {currentCount}, default: {defaultCount}) but cannot be resized");
                 }
             }
         }
@@ -807,20 +818,24 @@ namespace GameDataEditor.ViewModels
                                 prop.SetValue(row, defaultValue);
                                 rowFieldsFixed++;
                             }
-                            // Check if property is a List<T> and needs length adjustment
-                            else if (prop.PropertyType.IsGenericType && 
-                                     prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>) &&
-                                     currentValue != null && defaultValue != null)
+                        // Check if property is a List<T> or FixedLengthArray<T> and needs length adjustment
+                        else if ((prop.PropertyType.IsGenericType && 
+                                 (prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>) ||
+                                  prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))) &&
+                                 currentValue != null && defaultValue != null)
+                        {
+                            var currentList = currentValue as System.Collections.IList;
+                            var defaultList = defaultValue as System.Collections.IList;
+                            
+                            if (currentList != null && defaultList != null)
                             {
-                                var currentList = currentValue as System.Collections.IList;
-                                var defaultList = defaultValue as System.Collections.IList;
+                                int currentCount = currentList.Count;
+                                int defaultCount = defaultList.Count;
                                 
-                                if (currentList != null && defaultList != null)
+                                if (currentCount != defaultCount)
                                 {
-                                    int currentCount = currentList.Count;
-                                    int defaultCount = defaultList.Count;
-                                    
-                                    if (currentCount != defaultCount)
+                                    // For FixedLengthArray, we can't change the length, so we only handle List<T>
+                                    if (prop.PropertyType.GetGenericTypeDefinition() == typeof(List<>))
                                     {
                                         // Adjust list length
                                         if (currentCount < defaultCount)
@@ -848,8 +863,14 @@ namespace GameDataEditor.ViewModels
                                         }
                                         rowArraysFixed++;
                                     }
+                                    // For FixedLengthArray, we just log the mismatch but don't change it
+                                    else if (prop.PropertyType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>))
+                                    {
+                                        Log($"Warning: FixedLengthArray '{prop.Name}' has mismatched length (current: {currentCount}, default: {defaultCount}) but cannot be resized");
+                                    }
                                 }
                             }
+                        }
                         }
 
                         if (rowFieldsFixed > 0 || rowArraysFixed > 0)

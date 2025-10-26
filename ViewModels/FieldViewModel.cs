@@ -1,5 +1,6 @@
 using GameDataEditor.Models;
 using GameDataEditor.Models.DataEntries;
+using GameDataEditor.Models.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -243,7 +244,19 @@ namespace GameDataEditor.ViewModels
             // This check is only for top-level properties, not items within collections.
             if (!_isCollectionItem)
             {
-                IsCollection = typeof(IList).IsAssignableFrom(propType) && propType != typeof(string);
+                // 检查是否为FixedLengthArray<T>类型
+                bool isFixedLengthArray = propType.IsGenericType && 
+                                        propType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>);
+                
+                // 如果是FixedLengthArray<T>，将其标记为集合，以便为每个元素创建独立的编辑控件
+                if (isFixedLengthArray)
+                {
+                    IsCollection = true;
+                }
+                else
+                {
+                    IsCollection = typeof(IList).IsAssignableFrom(propType) && propType != typeof(string);
+                }
             }
         }
 
@@ -258,7 +271,16 @@ namespace GameDataEditor.ViewModels
             }
             else
             {
-                currentValue = _propertyInfo.GetValue(_instance);
+                try
+                {
+                    currentValue = _propertyInfo.GetValue(_instance);
+                }
+                catch (System.Reflection.TargetParameterCountException)
+                {
+                    // 处理FixedLengthArray<T>的反射问题
+                    _log($"Warning: Failed to get value for property {_propertyInfo.Name} due to parameter count mismatch. Skipping subfields.");
+                    return;
+                }
             }
 
             if (currentValue == null) return;
@@ -274,6 +296,7 @@ namespace GameDataEditor.ViewModels
             else
             {
                 Type valueType = currentValue.GetType();
+                
                 if (valueType.IsClass && valueType != typeof(string) && !IsForeignKey)
                 {
                     var subProperties = valueType.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(p => p.MetadataToken);

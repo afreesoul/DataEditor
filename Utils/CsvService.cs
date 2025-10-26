@@ -1,5 +1,6 @@
 using GameDataEditor.Models;
 using GameDataEditor.Models.DataEntries;
+using GameDataEditor.Models.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -76,7 +77,7 @@ namespace GameDataEditor.Utils
 
                 var propType = prop.PropertyType;
 
-                if (propType.GetInterface(nameof(IList)) != null && propType != typeof(string))
+                if ((propType.GetInterface(nameof(IList)) != null || propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>)) && propType != typeof(string))
                 {
                     var list = (IList)value;
                     for (int i = 0; i < list.Count; i++)
@@ -148,11 +149,17 @@ namespace GameDataEditor.Utils
 
                 var propType = propInfo.PropertyType;
 
-                if (propType.GetInterface(nameof(IList)) != null && propType != typeof(string))
+                if ((propType.GetInterface(nameof(IList)) != null || propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>)) && propType != typeof(string))
                 {
                     var list = (IList?)propInfo.GetValue(targetObj);
                     if (list == null) continue;
-                    list.Clear();
+                    
+                    // For FixedLengthArray, we don't clear as it has fixed length
+                    var isFixedLengthArray = propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(FixedLengthArray<>);
+                    if (!isFixedLengthArray)
+                    {
+                        list.Clear();
+                    }
 
                     var itemType = propType.GetGenericArguments()[0];
                     var itemsData = group
@@ -168,7 +175,14 @@ namespace GameDataEditor.Utils
                         {
                             var simpleValue = itemGroup.First().Value;
                             var convertedValue = Convert.ChangeType(simpleValue, itemType, CultureInfo.InvariantCulture);
-                            list.Add(convertedValue);
+                            if (isFixedLengthArray && itemGroup.Key < list.Count)
+                            {
+                                list[itemGroup.Key] = convertedValue;
+                            }
+                            else if (!isFixedLengthArray)
+                            {
+                                list.Add(convertedValue);
+                            }
                         }
                         else
                         {
@@ -176,7 +190,14 @@ namespace GameDataEditor.Utils
                             if (newItem != null) 
                             {
                                 UnflattenObject(newItem, itemRecord);
-                                list.Add(newItem);
+                                if (isFixedLengthArray && itemGroup.Key < list.Count)
+                                {
+                                    list[itemGroup.Key] = newItem;
+                                }
+                                else if (!isFixedLengthArray)
+                                {
+                                    list.Add(newItem);
+                                }
                             }
                         }
                     }

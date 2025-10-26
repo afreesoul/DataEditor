@@ -1,7 +1,5 @@
 using GameDataEditor.Models.DataEntries.Complex;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json.Serialization;
+using GameDataEditor.Models.Utils;
 
 namespace GameDataEditor.Models.DataEntries
 {
@@ -11,9 +9,8 @@ namespace GameDataEditor.Models.DataEntries
         public int Attack { get; set; }
         public int Experience { get; set; }
 
-        public int Test;
         public Stats? BaseStats { get; set; }
-        public List<string> Tags { get; set; } = Enumerable.Repeat(string.Empty, 1).ToList();
-        public List<Aura> Auras { get; set; } = Enumerable.Range(0, 8).Select(_ => new Aura()).ToList();
+        public FixedLengthArray<string> Tags { get; set; } = new FixedLengthArray<string>(3);
+        public FixedLengthArray<Aura> Auras { get; set; } = new FixedLengthArray<Aura>(8);
     }
 }

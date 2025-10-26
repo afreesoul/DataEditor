@@ -2,7 +2,14 @@ namespace GameDataEditor.Models.DataEntries.Complex
 {
     public class Aura
     {
-        public string Name { get; set; } = string.Empty;
+        public Aura()
+        {
+            Name = string.Empty;
+            Damage = 0;
+            Duration = 0f;
+        }
+        
+        public string Name { get; set; }
         public int Damage { get; set; }
         public float Duration { get; set; }
     }
