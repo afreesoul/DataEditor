@@ -180,8 +180,8 @@ namespace GameDataEditor.ViewModels
             ImportCsvCommand = new RelayCommand(ImportAllFromCsv);
             FixFieldsCommand = new RelayCommand(FixFields);
 
-            //LoadFromFolder();
-            LoadFromCsvFolder();
+            LoadFromFolder();
+            //LoadFromCsvFolder();
             Log("ViewModel initialized.");
         }
 

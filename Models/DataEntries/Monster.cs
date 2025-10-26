@@ -10,7 +10,7 @@ namespace GameDataEditor.Models.DataEntries
         public int Experience { get; set; }
 
         public Stats? BaseStats { get; set; }
-        public FixedLengthArray<string> Tags { get; set; } = new FixedLengthArray<string>(3);
-        public FixedLengthArray<Aura> Auras { get; set; } = new FixedLengthArray<Aura>(8);
+        public FixedLengthArray<string> Tags { get; set; } = new(3);
+        public FixedLengthArray<Aura> Auras { get; set; } = new(8);
     }
 }
