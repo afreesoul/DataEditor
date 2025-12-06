@@ -1,6 +1,7 @@
 using GameDataEditor.Models;
 using GameDataEditor.Models.DataEntries;
 using GameDataEditor.Models.Utils;
+using GameDataEditor.Services;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,12 +22,34 @@ namespace GameDataEditor.ViewModels
         private readonly Action<string> _log;
         private readonly string _tableName;
         private readonly Action<string, object, int, int> _onIdChanged;
+        private readonly FieldCommentService? _fieldCommentService;
 
         // For collection items
         private readonly bool _isCollectionItem;
         private readonly int _collectionIndex = -1;
 
+        private string _comment = string.Empty;
+        public string Comment
+        {
+            get => _comment;
+            set
+            {
+                if (_comment != value)
+                {
+                    _comment = value;
+                    OnPropertyChanged(nameof(Comment));
+                    OnPropertyChanged(nameof(DisplayKey));
+                }
+            }
+        }
+
+        // 原始字段名，用于保存注释时使用
+        public string OriginalKey { get; private set; }
+
         public string Key { get; private set; }
+
+        // 显示用的Key，包含注释
+        public string DisplayKey => string.IsNullOrEmpty(Comment) ? Key : $"{Key} - {Comment}";
         public bool HasSubFields => SubFields.Count > 0;
         public bool IsEnum { get; private set; }
         public bool IsForeignKey { get; private set; }
@@ -177,7 +200,7 @@ namespace GameDataEditor.ViewModels
         }
 
         // Main constructor
-        public FieldViewModel(object instance, PropertyInfo propertyInfo, ObservableCollection<GameDataTable> allTables, Action<string> log, string tableName, Action<string, object, int, int> onIdChanged)
+        public FieldViewModel(object instance, PropertyInfo propertyInfo, ObservableCollection<GameDataTable> allTables, Action<string> log, string tableName, Action<string, object, int, int> onIdChanged, FieldCommentService? fieldCommentService = null)
         {
             _instance = instance;
             _propertyInfo = propertyInfo;
@@ -185,30 +208,46 @@ namespace GameDataEditor.ViewModels
             _log = log;
             _tableName = tableName;
             _onIdChanged = onIdChanged;
+            _fieldCommentService = fieldCommentService;
 
             Key = _propertyInfo.Name;
+            OriginalKey = Key;
             IsIdField = (Key == "ID");
+
+            // 加载字段注释
+            if (_fieldCommentService != null && !string.IsNullOrEmpty(_tableName))
+            {
+                Comment = _fieldCommentService.GetComment(_tableName, OriginalKey);
+            }
 
             CheckFieldType();
             PopulateSubFields();
         }
 
         // Constructor for collection items
-        private FieldViewModel(object collectionInstance, PropertyInfo collectionPropInfo, int index, Action<string> log)
+        private FieldViewModel(object collectionInstance, PropertyInfo collectionPropInfo, int index, Action<string> log, string tableName = "", FieldCommentService? fieldCommentService = null)
         {
             _instance = collectionInstance;
             _propertyInfo = collectionPropInfo; // This is the PropertyInfo of the collection itself
             _collectionIndex = index;
             _isCollectionItem = true;
             _log = log;
+            _tableName = tableName;
+            _fieldCommentService = fieldCommentService;
 
             Key = $"[{index}]";
+            OriginalKey = $"{collectionPropInfo.Name}[{index}]";
             
             // Defaults for non-applicable fields
             _allTables = new ObservableCollection<GameDataTable>();
-            _tableName = string.Empty;
             _onIdChanged = (a,b,c,d) => {};
             IsIdField = false;
+
+            // 加载字段注释（数组元素）
+            if (_fieldCommentService != null && !string.IsNullOrEmpty(_tableName))
+            {
+                Comment = _fieldCommentService.GetComment(_tableName, OriginalKey);
+            }
 
             CheckFieldType(); // Check if the item itself is an enum, etc.
             PopulateSubFields();
@@ -290,7 +329,7 @@ namespace GameDataEditor.ViewModels
                 var list = (IList)currentValue;
                 for (int i = 0; i < list.Count; i++)
                 {
-                    SubFields.Add(new FieldViewModel(list, _propertyInfo, i, _log));
+                    SubFields.Add(new FieldViewModel(list, _propertyInfo, i, _log, _tableName, _fieldCommentService));
                 }
             }
             else
@@ -303,7 +342,7 @@ namespace GameDataEditor.ViewModels
                     foreach (var subProp in subProperties)
                     {
                         // Pass the parent's _onIdChanged delegate down to children
-                        SubFields.Add(new FieldViewModel(currentValue, subProp, _allTables, _log, _tableName, _onIdChanged));
+                        SubFields.Add(new FieldViewModel(currentValue, subProp, _allTables, _log, _tableName, _onIdChanged, _fieldCommentService));
                     }
                 }
             }

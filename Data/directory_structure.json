@@ -3,7 +3,7 @@
     {
       "Name": "\u4EFB\u52A1",
       "IsDirectory": true,
-      "IsExpanded": false,
+      "IsExpanded": true,
       "Children": [
         {
           "Name": "Quests",
@@ -21,13 +21,13 @@
         {
           "Name": "Items",
           "IsDirectory": false,
-          "IsExpanded": false,
+          "IsExpanded": true,
           "Children": []
         },
         {
           "Name": "Monsters",
           "IsDirectory": false,
-          "IsExpanded": false,
+          "IsExpanded": true,
           "Children": []
         }
       ]

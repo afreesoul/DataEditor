@@ -134,10 +134,19 @@
                                 <HierarchicalDataTemplate ItemsSource="{Binding SubFields}">
                                     <Grid Margin="0,2" MinWidth="300">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="150"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding Key}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="0" Text="{Binding DisplayKey}" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                 Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}">
+                                            <TextBlock.ContextMenu>
+                                                <ContextMenu DataContext="{Binding PlacementTarget, RelativeSource={RelativeSource Self}}">
+                                                    <MenuItem Header="注释" 
+                                                              Command="{Binding Tag.AddFieldCommentCommand}" 
+                                                              CommandParameter="{Binding DataContext}"/>
+                                                </ContextMenu>
+                                            </TextBlock.ContextMenu>
+                                        </TextBlock>
 
                                         <!-- Display for collection root -->
                                         <TextBlock Grid.Column="1" Text="(Collection)" FontStyle="Italic" VerticalAlignment="Center">

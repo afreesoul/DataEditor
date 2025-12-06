@@ -14,6 +14,13 @@ namespace GameDataEditor
             
             // 设置初始按钮状态
             UpdateOkButtonState();
+
+            // 窗口加载后让输入框获得焦点并选中全部文本
+            Loaded += (s, e) =>
+            {
+                CommentTextBox.Focus();
+                CommentTextBox.SelectAll();
+            };
         }
 
         private void CommentTextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)

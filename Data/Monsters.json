@@ -25,82 +25,42 @@
       {
         "Name": "test",
         "Damage": 5645,
-        "Duration": 10,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 10
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 15
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       }
     ]
   },
@@ -130,82 +90,42 @@
       {
         "Name": "Fire",
         "Damage": 5,
-        "Duration": 10,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 10
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 15
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       }
     ]
   },
@@ -235,82 +155,42 @@
       {
         "Name": "Fire",
         "Damage": 5,
-        "Duration": 10,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 10
       },
       {
         "Name": "Ice",
         "Damage": 2,
-        "Duration": 15,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 15
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       },
       {
         "Name": null,
         "Damage": 0,
-        "Duration": 0,
-        "Tags": [
-          null,
-          null,
-          null
-        ]
+        "Duration": 0
       }
     ]
   }

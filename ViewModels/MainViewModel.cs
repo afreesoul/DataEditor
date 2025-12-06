@@ -29,6 +29,7 @@ namespace GameDataEditor.ViewModels
         private readonly Dictionary<string, int> _lastSelectedRowIds = new Dictionary<string, int>();
         private TableCommentService? _commentService;
         private DirectoryStructureService? _directoryService;
+        private FieldCommentService? _fieldCommentService;
 
         // Logging
         private string _logOutput = string.Empty;
@@ -108,6 +109,7 @@ namespace GameDataEditor.ViewModels
         public ICommand AddTableCommentCommand { get; }
         public ICommand CreateDirectoryCommand { get; }
         public ICommand MoveTableCommand { get; }
+        public ICommand AddFieldCommentCommand { get; }
 
         public bool IsRowSelected => SelectedRow != null;
         public bool IsTableSelected => SelectedTable != null;
@@ -195,6 +197,7 @@ namespace GameDataEditor.ViewModels
             AddTableCommentCommand = new RelayCommand(() => AddTableComment());
             CreateDirectoryCommand = new RelayCommand(CreateDirectory);
             MoveTableCommand = new RelayCommand<MoveTableParameters>(MoveTable);
+            AddFieldCommentCommand = new RelayCommand<FieldViewModel>(AddFieldComment);
 
             LoadFromFolder();
             //LoadFromCsvFolder();
@@ -274,6 +277,52 @@ namespace GameDataEditor.ViewModels
             }
         }
 
+        public void AddFieldComment(FieldViewModel? field)
+        {
+            if (field == null)
+            {
+                MessageBox.Show("请先选择一个字段", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            if (SelectedTable == null)
+            {
+                MessageBox.Show("请先选择一个表", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var commentDialog = new CommentDialogWindow(field.Comment);
+            commentDialog.Title = "添加字段注释";
+            commentDialog.Owner = Application.Current.Windows.OfType<Window>().SingleOrDefault(x => x.IsActive);
+            
+            if (commentDialog.ShowDialog() == true)
+            {
+                string newComment = commentDialog.CommentText?.Trim() ?? string.Empty;
+                
+                // 初始化字段注释服务（如果尚未初始化）
+                if (_fieldCommentService == null && !string.IsNullOrEmpty(_appSettings.DataFolderPath))
+                {
+                    _fieldCommentService = new FieldCommentService(_appSettings.DataFolderPath);
+                }
+
+                if (_fieldCommentService != null)
+                {
+                    // 保存注释到文件
+                    _fieldCommentService.SetComment(SelectedTable.Name, field.OriginalKey, newComment);
+                    
+                    // 更新字段的注释属性
+                    field.Comment = newComment;
+                    
+                    Log($"为表 '{SelectedTable.Name}' 的字段 '{field.OriginalKey}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释: {newComment}");
+                }
+                else
+                {
+                    // 如果无法初始化注释服务，至少更新UI显示
+                    field.Comment = newComment;
+                    Log($"为字段 '{field.OriginalKey}' {(string.IsNullOrEmpty(newComment) ? "清空" : "设置")}注释（本地显示）: {newComment}");
+                }
+            }
+        }
         public void CreateDirectory()
         {
             var dialog = new DirectoryDialogWindow();
@@ -688,6 +737,7 @@ namespace GameDataEditor.ViewModels
             {
                 _commentService = new TableCommentService(directory);
                 _directoryService = new DirectoryStructureService(directory);
+                _fieldCommentService = new FieldCommentService(directory);
             }
 
             foreach (var kvp in TableTypeMapping)
@@ -951,7 +1001,7 @@ namespace GameDataEditor.ViewModels
                         Log("Reselecting row.");
                         SelectedRow = dataRow;
                     }
-                }));
+                }, _fieldCommentService));
             }
 
             // Apply the default expansion setting
